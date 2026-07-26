@@ -146,7 +146,10 @@ def carregar_tributos() -> dict:
         cfg = json.load(fh)
     faixas = {}
     for f in cfg["faixas"]:
-        total = round(f.get("pis", 0) + f.get("cofins", 0) + f.get("cide", 0), 6)
+        if "total" in f:
+            total = round(float(f["total"]), 6)
+        else:
+            total = round(f.get("pis", 0) + f.get("cofins", 0) + f.get("cide", 0), 6)
         faixas.setdefault(f["produto"], []).append(
             {"de": f["de"], "ate": f.get("ate"), "total": total, "fonte": f.get("fonte")}
         )
