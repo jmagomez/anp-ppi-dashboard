@@ -305,6 +305,13 @@ def main() -> int:
         )
 
     write_csvs(products)
+
+    try:
+        import defasagem
+        defasagem.run(products, OUT_DIR)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[defasagem] etapa ignorada: {type(exc).__name__}: {exc}")
+
     size = (OUT_DIR / "ppi.json").stat().st_size
     print(f"OK -> docs/data/ppi.json ({size:,} bytes) | ultima semana {latest}")
     return 0
