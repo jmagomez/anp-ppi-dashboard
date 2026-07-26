@@ -1,0 +1,60 @@
+{
+  "_nota": [
+    "Tributos federais ad rem incidentes sobre a comercializacao de combustiveis,",
+    "em R$ por litro (gasolina e diesel) ou por kg (GLP).",
+    "",
+    "Por que existe este arquivo: a planilha de Precos Medios Ponderados Semanais",
+    "de produtores e importadores da ANP inclui Cide, PIS/Pasep e Cofins, enquanto",
+    "o Preco de Paridade de Importacao e publicado sem tributos. Para comparar as",
+    "duas series na mesma base, deduzimos estes valores do preco de produtor.",
+    "",
+    "Fonte primaria: ANP, Sintese Semanal de Precos dos Combustiveis, nota (9),",
+    "que remete ao Decreto 5.059/2004, Decreto 5.060/2004, Decreto 10.527/2020 e",
+    "Lei 9.718/1998. As vigencias sao conferidas empiricamente a cada execucao",
+    "contra os valores de REALIZACAO publicados na propria sintese (ver",
+    "docs/data/_debug_ppidp.json, secao validacao_sintese).",
+    "",
+    "Para corrigir ou estender a serie, edite as faixas abaixo. Semanas anteriores",
+    "a inicio_serie ficam sem defasagem publicada, em vez de receberem um numero",
+    "calculado sobre base tributaria desconhecida."
+  ],
+  "inicio_serie": "2023-09-04",
+  "faixas": [
+    {
+      "produto": "gasolina",
+      "de": "2023-09-04",
+      "ate": null,
+      "pis": 0.1411,
+      "cofins": 0.6514,
+      "cide": 0.10,
+      "fonte": "ANP, Sintese Semanal de Precos, nota (9)"
+    },
+    {
+      "produto": "diesel",
+      "de": "2023-09-04",
+      "ate": "2026-03-12",
+      "pis": 0.0554,
+      "cofins": 0.2926,
+      "cide": 0.0,
+      "fonte": "Regime ad rem vigente ate a MP 1.340/2026; valor conferido empiricamente"
+    },
+    {
+      "produto": "diesel",
+      "de": "2026-03-13",
+      "ate": "2026-12-31",
+      "pis": 0.0,
+      "cofins": 0.0,
+      "cide": 0.0,
+      "fonte": "MP 1.340/2026 e Decreto 12.878/2026, citados na nota (9) da ANP"
+    },
+    {
+      "produto": "glp",
+      "de": "2023-09-04",
+      "ate": null,
+      "pis": 0.0,
+      "cofins": 0.0,
+      "cide": 0.0,
+      "fonte": "A composicao de precos do GLP publicada pela ANP nao traz parcela federal"
+    }
+  ]
+}
