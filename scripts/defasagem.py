@@ -67,6 +67,17 @@ TRIBUTOS_FEDERAIS = {
 APLICAR_DEDUCAO_TRIBUTOS = False
 
 
+def semana_chave(iso: str) -> str:
+    """Segunda-feira da semana ISO que contem a data de fim.
+
+    O PPI da ANP publica semanas de segunda a sexta; a planilha de produtores
+    usa outro fechamento. Ancorar as duas pela segunda-feira da semana ISO da
+    data final faz o pareamento correto.
+    """
+    d = date.fromisoformat(iso)
+    return (d - timedelta(days=d.weekday())).isoformat()
+
+
 def norm(text) -> str:
     if text is None:
         return ""
@@ -129,6 +140,7 @@ def parse_ppidp(blob: bytes) -> tuple[dict, dict]:
 
     produtos: dict[str, dict[str, float]] = {}
     rotulos: dict[str, str] = {}
+    amostra_datas: dict[str, list] = {}
 
     for r in range(9, ws.nrows):
         raw = ws.cell_value(r, COL_PRODUTO)
@@ -142,12 +154,17 @@ def parse_ppidp(blob: bytes) -> tuple[dict, dict]:
         val = as_number(ws.cell_value(r, COL_BRASIL))
         if val is None:
             continue
-        produtos.setdefault(key, {})[fim] = val
+        produtos.setdefault(key, {})[semana_chave(fim)] = val
         rotulos.setdefault(key, label)
+        amostra_datas.setdefault(key, []).append(fim)
 
     diag = {
         "linhas": ws.nrows,
         "produtos_encontrados": sorted(rotulos.values()),
+        "exemplo_datas_fim": {
+            rotulos[k]: v[-3:] for k, v in amostra_datas.items()
+            if k in rotulos and re.search(r"^gasolina a comum", k)
+        },
     }
     return {"series": produtos, "rotulos": rotulos}, diag
 
@@ -186,7 +203,7 @@ def build(products: dict, raw: dict) -> tuple[dict, dict]:
             if not vals:
                 continue
             ppi_med = sum(vals) / len(vals)
-            r = real.get(w["end"])
+            r = real.get(semana_chave(w["end"]))
             if r is None:
                 continue
             r = (r - ded) * fator
@@ -226,6 +243,39 @@ def build(products: dict, raw: dict) -> tuple[dict, dict]:
         }
 
     return out, checks
+
+
+# Valores publicados na Sintese Semanal de Precos da ANP, edicao 13/2026
+# (semana de referencia 15/03 a 21/03/2026). Servem para conferir a base
+# tributaria e a ordem de grandeza da extracao.
+SINTESE_REF = {
+    "gasolina": {"semana": "2026-03-16", "realizacao": 3.58, "ppi": 3.92},
+    "diesel": {"semana": "2026-03-16", "realizacao": 5.29, "ppi": 6.01},
+    "glp": {"semana": "2026-03-16", "realizacao": 35.91, "ppi": 48.02},
+}
+
+
+def validar(data: dict) -> dict:
+    """Compara o que extraimos com o que a ANP publicou na sintese."""
+    res = {}
+    for key, ref in SINTESE_REF.items():
+        p = data.get(key)
+        if not p:
+            res[key] = {"status": "produto ausente"}
+            continue
+        w = next((x for x in p["weeks"] if x["end"].startswith(ref["semana"][:7])
+                  and semana_chave(x["end"]) == ref["semana"]), None)
+        if not w:
+            res[key] = {"status": "semana de referencia ausente"}
+            continue
+        res[key] = {
+            "semana": w["end"],
+            "ppi_calculado": w["ppi"], "ppi_anp": ref["ppi"],
+            "realizacao_calculada": w["real"], "realizacao_anp": ref["realizacao"],
+            "erro_ppi_pct": round((w["ppi"] / ref["ppi"] - 1) * 100, 2),
+            "erro_realizacao_pct": round((w["real"] / ref["realizacao"] - 1) * 100, 2),
+        }
+    return res
 
 
 def write_outputs(data: dict, out_dir: Path) -> None:
@@ -270,13 +320,14 @@ def run(products: dict, out_dir: Path) -> None:
 
         data, checks = build(products, raw)
         debug["checagens"] = checks
+        debug["validacao_sintese"] = validar(data)
 
         if data:
             write_outputs(data, out_dir)
             for k, c in checks.items():
                 if c.get("status") == "ok":
                     print(f"[ppidp] {k:<9} {c['semanas']:>4} semanas | ate {c['ultima']} "
-                          f"| PPI {c['ppi']:.4f} vs realizacao {c['real'] if 'real' in c else c['realizacao']:.4f} "
+                          f"| PPI {c['ppi']:.4f} vs realizacao {c['realizacao']:.4f} "
                           f"| defasagem {c['defasagem_pct']:.2f}%")
                 else:
                     print(f"[ppidp] {k:<9} {c['status']}")
