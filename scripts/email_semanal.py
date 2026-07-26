@@ -128,7 +128,7 @@ def alertas(linhas, ppi, defas):
             if abs(l["defasagem_pct"]) >= LIM_DEFASAGEM:
                 lado = "abaixo" if l["defasagem_pct"] < 0 else "acima"
                 out.append(
-                    f"{nome}: preço interno {abs(l['defasagem_pct']):.1f}% {lado} "
+                    f"{nome}: preço interno {nfmt(abs(l['defasagem_pct']), 1)}% {lado} "
                     f"da paridade de importação."
                 )
             if (l["defasagem_ant"] is not None
