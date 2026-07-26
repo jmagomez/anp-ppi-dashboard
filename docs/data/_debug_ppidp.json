@@ -24,23 +24,246 @@
   "Óleo Diesel S-500 (R$/litro)",
   "Óleo Diesel² (R$/litro)"
  ],
+ "exemplo_datas_fim": {
+  "Gasolina A Comum (R$/litro)": [
+   "2026-07-05",
+   "2026-07-12",
+   "2026-07-19"
+  ]
+ },
  "checagens": {
   "gasolina": {
-   "status": "sem semanas em comum",
-   "produto": "Gasolina A Comum (R$/litro)"
+   "status": "ok",
+   "produto": "Gasolina A Comum (R$/litro)",
+   "semanas": 402,
+   "ultima": "2026-07-17",
+   "ppi": 3.603371,
+   "realizacao": 3.80219,
+   "defasagem_pct": 5.5176,
+   "amostra": [
+    {
+     "end": "2026-06-19",
+     "label": "15/06/2026 A 19/06/2026",
+     "ppi": 3.173844,
+     "real": 4.98554,
+     "gap": 1.811696,
+     "gap_pct": 57.0821
+    },
+    {
+     "end": "2026-06-26",
+     "label": "22/06/2026 A 26/06/2026",
+     "ppi": 3.152127,
+     "real": 3.73361,
+     "gap": 0.581483,
+     "gap_pct": 18.4473
+    },
+    {
+     "end": "2026-07-03",
+     "label": "29/06/2026 A 03/07/2026",
+     "ppi": 3.203973,
+     "real": 3.7513,
+     "gap": 0.547327,
+     "gap_pct": 17.0828
+    },
+    {
+     "end": "2026-07-10",
+     "label": "06/07/2026 A 10/07/2026",
+     "ppi": 3.316421,
+     "real": 3.66978,
+     "gap": 0.353359,
+     "gap_pct": 10.6548
+    },
+    {
+     "end": "2026-07-17",
+     "label": "13/07/2026 A 17/07/2026",
+     "ppi": 3.603371,
+     "real": 3.80219,
+     "gap": 0.198819,
+     "gap_pct": 5.5176
+    }
+   ]
   },
   "diesel": {
-   "status": "sem semanas em comum",
-   "produto": "Óleo Diesel S-10 (R$/litro)"
+   "status": "ok",
+   "produto": "Óleo Diesel S-10 (R$/litro)",
+   "semanas": 402,
+   "ultima": "2026-07-17",
+   "ppi": 5.279189,
+   "realizacao": 3.80761,
+   "defasagem_pct": -27.8751,
+   "amostra": [
+    {
+     "end": "2026-06-19",
+     "label": "15/06/2026 A 19/06/2026",
+     "ppi": 4.376408,
+     "real": 5.22304,
+     "gap": 0.846632,
+     "gap_pct": 19.3454
+    },
+    {
+     "end": "2026-06-26",
+     "label": "22/06/2026 A 26/06/2026",
+     "ppi": 4.224832,
+     "real": 5.21741,
+     "gap": 0.992578,
+     "gap_pct": 23.4939
+    },
+    {
+     "end": "2026-07-03",
+     "label": "29/06/2026 A 03/07/2026",
+     "ppi": 4.416905,
+     "real": 5.20592,
+     "gap": 0.789015,
+     "gap_pct": 17.8635
+    },
+    {
+     "end": "2026-07-10",
+     "label": "06/07/2026 A 10/07/2026",
+     "ppi": 4.668337,
+     "real": 3.84793,
+     "gap": -0.820407,
+     "gap_pct": -17.5739
+    },
+    {
+     "end": "2026-07-17",
+     "label": "13/07/2026 A 17/07/2026",
+     "ppi": 5.279189,
+     "real": 3.80761,
+     "gap": -1.471579,
+     "gap_pct": -27.8751
+    }
+   ]
   },
   "qav": {
-   "status": "sem semanas em comum",
-   "produto": "Querosene de Aviação - QAV (R$/litro)"
+   "status": "ok",
+   "produto": "Querosene de Aviação - QAV (R$/litro)",
+   "semanas": 402,
+   "ultima": "2026-07-17",
+   "ppi": 5.269408,
+   "realizacao": 4.87395,
+   "defasagem_pct": -7.5048,
+   "amostra": [
+    {
+     "end": "2026-06-19",
+     "label": "15/06/2026 A 19/06/2026",
+     "ppi": 4.452648,
+     "real": 5.7162,
+     "gap": 1.263552,
+     "gap_pct": 28.3775
+    },
+    {
+     "end": "2026-06-26",
+     "label": "22/06/2026 A 26/06/2026",
+     "ppi": 4.301197,
+     "real": 5.60332,
+     "gap": 1.302123,
+     "gap_pct": 30.2735
+    },
+    {
+     "end": "2026-07-03",
+     "label": "29/06/2026 A 03/07/2026",
+     "ppi": 4.433476,
+     "real": 5.02958,
+     "gap": 0.596104,
+     "gap_pct": 13.4455
+    },
+    {
+     "end": "2026-07-10",
+     "label": "06/07/2026 A 10/07/2026",
+     "ppi": 4.619674,
+     "real": 4.79355,
+     "gap": 0.173876,
+     "gap_pct": 3.7638
+    },
+    {
+     "end": "2026-07-17",
+     "label": "13/07/2026 A 17/07/2026",
+     "ppi": 5.269408,
+     "real": 4.87395,
+     "gap": -0.395458,
+     "gap_pct": -7.5048
+    }
+   ]
   },
   "glp": {
-   "status": "sem semanas em comum",
-   "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)"
+   "status": "ok",
+   "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)",
+   "semanas": 402,
+   "ultima": "2026-07-17",
+   "ppi": 38.116,
+   "realizacao": 36.57121,
+   "defasagem_pct": -4.0529,
+   "amostra": [
+    {
+     "end": "2026-06-19",
+     "label": "15/06/2026 A 19/06/2026",
+     "ppi": 39.819,
+     "real": 36.55002,
+     "gap": -3.26898,
+     "gap_pct": -8.2096
+    },
+    {
+     "end": "2026-06-26",
+     "label": "22/06/2026 A 26/06/2026",
+     "ppi": 36.166,
+     "real": 36.39155,
+     "gap": 0.22555,
+     "gap_pct": 0.6237
+    },
+    {
+     "end": "2026-07-03",
+     "label": "29/06/2026 A 03/07/2026",
+     "ppi": 34.502,
+     "real": 36.31433,
+     "gap": 1.81233,
+     "gap_pct": 5.2528
+    },
+    {
+     "end": "2026-07-10",
+     "label": "06/07/2026 A 10/07/2026",
+     "ppi": 35.659,
+     "real": 36.60514,
+     "gap": 0.94614,
+     "gap_pct": 2.6533
+    },
+    {
+     "end": "2026-07-17",
+     "label": "13/07/2026 A 17/07/2026",
+     "ppi": 38.116,
+     "real": 36.57121,
+     "gap": -1.54479,
+     "gap_pct": -4.0529
+    }
+   ]
   }
  },
- "error": "nenhum produto pareado"
+ "validacao_sintese": {
+  "gasolina": {
+   "semana": "2026-03-20",
+   "ppi_calculado": 3.920199,
+   "ppi_anp": 3.92,
+   "realizacao_calculada": 4.47358,
+   "realizacao_anp": 3.58,
+   "erro_ppi_pct": 0.01,
+   "erro_realizacao_pct": 24.96
+  },
+  "diesel": {
+   "semana": "2026-03-20",
+   "ppi_calculado": 6.008361,
+   "ppi_anp": 6.01,
+   "realizacao_calculada": 5.29293,
+   "realizacao_anp": 5.29,
+   "erro_ppi_pct": -0.03,
+   "erro_realizacao_pct": 0.06
+  },
+  "glp": {
+   "semana": "2026-03-20",
+   "ppi_calculado": 48.022,
+   "ppi_anp": 48.02,
+   "realizacao_calculada": 35.91484,
+   "realizacao_anp": 35.91,
+   "erro_ppi_pct": 0.0,
+   "erro_realizacao_pct": 0.01
+  }
+ }
 }
