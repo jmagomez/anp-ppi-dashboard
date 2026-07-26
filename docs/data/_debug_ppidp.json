@@ -107,25 +107,25 @@
     {
      "semana": "2026-02-23",
      "anp": 3.59,
-     "calculado": 3.5972,
-     "erro_pct": 0.2,
-     "tributo_aplicado": 0.348,
+     "calculado": 3.9452,
+     "erro_pct": 9.89,
+     "tributo_aplicado": 0,
      "tributo_implicito": 0.3552
     },
     {
      "semana": "2026-03-02",
      "anp": 4.71,
-     "calculado": 4.3596,
-     "erro_pct": -7.44,
-     "tributo_aplicado": 0.348,
+     "calculado": 4.7076,
+     "erro_pct": -0.05,
+     "tributo_aplicado": 0,
      "tributo_implicito": -0.0024
     },
     {
      "semana": "2026-03-09",
      "anp": 5.36,
-     "calculado": 5.0082,
-     "erro_pct": -6.56,
-     "tributo_aplicado": 0.348,
+     "calculado": 5.3562,
+     "erro_pct": -0.07,
+     "tributo_aplicado": 0,
      "tributo_implicito": -0.0038
     },
     {
@@ -133,7 +133,7 @@
      "anp": 5.29,
      "calculado": 5.2929,
      "erro_pct": 0.06,
-     "tributo_aplicado": 0.0,
+     "tributo_aplicado": 0,
      "tributo_implicito": 0.0029
     }
    ],
@@ -153,7 +153,7 @@
      "anp": 36.71,
      "calculado": 36.7077,
      "erro_pct": -0.01,
-     "tributo_aplicado": 0.0,
+     "tributo_aplicado": 0,
      "tributo_implicito": -0.0002
     },
     {
@@ -161,7 +161,7 @@
      "anp": 39.03,
      "calculado": 39.032,
      "erro_pct": 0.01,
-     "tributo_aplicado": 0.0,
+     "tributo_aplicado": 0,
      "tributo_implicito": 0.0002
     },
     {
@@ -169,7 +169,7 @@
      "anp": 36.02,
      "calculado": 36.0212,
      "erro_pct": 0.0,
-     "tributo_aplicado": 0.0,
+     "tributo_aplicado": 0,
      "tributo_implicito": 0.0001
     },
     {
@@ -177,7 +177,7 @@
      "anp": 35.91,
      "calculado": 35.9148,
      "erro_pct": 0.01,
-     "tributo_aplicado": 0.0,
+     "tributo_aplicado": 0,
      "tributo_implicito": 0.0004
     }
    ],
