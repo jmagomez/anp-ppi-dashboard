@@ -3,18 +3,28 @@
 Defasagem PPI x preco de realizacao.
 
 Preco interno: ANP, "Precos Medios Ponderados Semanais" praticados por
-produtores e importadores de derivados de petroleo e biodiesel (serie
-semanal a partir de 2013), coluna Brasil.
+produtores e importadores de derivados de petroleo e biodiesel (serie semanal
+a partir de 2013), coluna Brasil.
 
-A Sintese Semanal de Precos da ANP usa exatamente essa fonte para a linha
-"REALIZACAO" e a descreve como "livres de tributos", mesma base do PPI
-("Todos os precos divulgados nao incluem tributos"). O modulo checa essa
-premissa numericamente e registra o resultado em _debug_ppidp.json.
+Compatibilizacao de base tributaria
+-----------------------------------
+O PPI da ANP e publicado sem tributos. A planilha de produtores inclui Cide,
+PIS/Pasep e Cofins (exclui ICMS). Para comparar as duas series deduzimos os
+tributos federais ad rem definidos em scripts/tributos.json.
+
+A premissa e conferida a cada execucao contra os valores de REALIZACAO
+publicados pela propria ANP na Sintese Semanal de Precos (ver a secao
+validacao_sintese em docs/data/_debug_ppidp.json). Semanas anteriores ao
+inicio da serie de aliquotas ficam sem defasagem, em vez de receberem um
+numero calculado sobre base desconhecida.
+
+QAV fica de fora: seus tributos federais nao sao ad rem, entao nao ha valor
+por litro a deduzir.
 
 Saidas em docs/data/:
-  defasagem.json       series pareadas PPI x realizacao + defasagem
-  defasagem.csv        mesma coisa em formato longo
-  _debug_ppidp.json    diagnostico da extracao (produtos, amostras, checagens)
+  defasagem.json     series pareadas PPI x realizacao + defasagem
+  defasagem.csv      mesma coisa em formato longo
+  _debug_ppidp.json  diagnostico da extracao e das validacoes
 """
 
 from __future__ import annotations
@@ -36,6 +46,10 @@ PPIDP_PAGE = (
     "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
     "precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel"
 )
+SINTESE_PAGE = (
+    "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
+    "precos/sintese-semanal-de-precos"
+)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; anp-ppi-dashboard/1.0)",
@@ -43,36 +57,39 @@ HEADERS = {
 }
 
 BR_TZ = timezone(timedelta(hours=-3))
-
-# Coluna "Brasil" na planilha da ANP (0-based).
 COL_PRODUTO, COL_INI, COL_FIM, COL_BRASIL = 0, 1, 2, 8
 
-# chave do PPI -> (regex do produto na planilha de produtores, fator de conversao)
-# GLP: planilha em R$/kg, PPI em R$/13kg.
+# chave do PPI -> (regex do produto na planilha de produtores, fator de unidade)
 MATCH = {
-    "gasolina": (r"^gasolina a\b", 1.0),
-    "diesel": (r"^oleo diesel a s-?10\b|^diesel a s-?10\b|^oleo diesel a\b|^oleo diesel\b", 1.0),
-    "qav": (r"querosene de aviacao", 1.0),
-    "glp": (r"gas liquefeito de petroleo", 13.0),
+    "gasolina": (r"^gasolina a comum", 1.0),
+    "diesel": (r"^oleo diesel s-?10", 1.0),
+    "glp": (r"^gas liquefeito de petroleo", 13.0),
 }
 
-# Tributos federais ad rem (R$/l), caso a serie venha COM tributos.
-# Fonte: Sintese Semanal de Precos da ANP, nota (9).
-# Mantido apenas como referencia auditavel; so e aplicado se
-# APLICAR_DEDUCAO_TRIBUTOS = True.
-TRIBUTOS_FEDERAIS = {
-    "gasolina": {"pis": 0.1411, "cofins": 0.6514, "cide": 0.10},
-    "diesel": {"pis": 0.0, "cofins": 0.0, "cide": 0.0},
+# Valores de REALIZACAO publicados pela ANP na Sintese Semanal de Precos,
+# edicao 13/2026. Usados para conferir base tributaria e ordem de grandeza.
+# chave -> {segunda-feira da semana ISO: valor}
+SINTESE_REF = {
+    "gasolina": {"2026-02-23": 2.70, "2026-03-02": 2.85,
+                 "2026-03-09": 2.68, "2026-03-16": 3.58},
+    "diesel": {"2026-02-23": 3.59, "2026-03-02": 4.71,
+               "2026-03-09": 5.36, "2026-03-16": 5.29},
+    "glp": {"2026-02-23": 36.71, "2026-03-02": 39.03,
+            "2026-03-09": 36.02, "2026-03-16": 35.91},
 }
-APLICAR_DEDUCAO_TRIBUTOS = False
+SINTESE_PPI_REF = {
+    "gasolina": {"2026-03-16": 3.92},
+    "diesel": {"2026-03-16": 6.01},
+    "glp": {"2026-03-16": 48.02},
+}
 
 
 def semana_chave(iso: str) -> str:
-    """Segunda-feira da semana ISO que contem a data de fim.
+    """Segunda-feira da semana ISO que contem a data.
 
-    O PPI da ANP publica semanas de segunda a sexta; a planilha de produtores
-    usa outro fechamento. Ancorar as duas pela segunda-feira da semana ISO da
-    data final faz o pareamento correto.
+    O PPI fecha a semana na sexta e a planilha de produtores usa outro
+    fechamento; ancorar as duas na segunda-feira da semana ISO faz o
+    pareamento correto.
     """
     d = date.fromisoformat(iso)
     return (d - timedelta(days=d.weekday())).isoformat()
@@ -120,8 +137,36 @@ def as_number(v):
         return None
 
 
+# --------------------------------------------------------------------------- #
+# tributos
+# --------------------------------------------------------------------------- #
+def carregar_tributos() -> dict:
+    path = Path(__file__).resolve().parent / "tributos.json"
+    with open(path, encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    faixas = {}
+    for f in cfg["faixas"]:
+        total = round(f.get("pis", 0) + f.get("cofins", 0) + f.get("cide", 0), 6)
+        faixas.setdefault(f["produto"], []).append(
+            {"de": f["de"], "ate": f.get("ate"), "total": total, "fonte": f.get("fonte")}
+        )
+    for v in faixas.values():
+        v.sort(key=lambda x: x["de"])
+    return {"inicio_serie": cfg["inicio_serie"], "faixas": faixas}
+
+
+def deducao(trib: dict, produto: str, semana_iso: str):
+    """Tributo federal ad rem vigente na semana, ou None se fora de cobertura."""
+    for f in trib["faixas"].get(produto, []):
+        if semana_iso >= f["de"] and (f["ate"] is None or semana_iso <= f["ate"]):
+            return f["total"]
+    return None
+
+
+# --------------------------------------------------------------------------- #
+# parsing
+# --------------------------------------------------------------------------- #
 def parse_ppidp(blob: bytes) -> tuple[dict, dict]:
-    """Retorna (series_por_produto_bruto, diagnostico)."""
     import xlrd
 
     wb = xlrd.open_workbook(file_contents=blob)
@@ -140,7 +185,6 @@ def parse_ppidp(blob: bytes) -> tuple[dict, dict]:
 
     produtos: dict[str, dict[str, float]] = {}
     rotulos: dict[str, str] = {}
-    amostra_datas: dict[str, list] = {}
 
     for r in range(9, ws.nrows):
         raw = ws.cell_value(r, COL_PRODUTO)
@@ -156,32 +200,21 @@ def parse_ppidp(blob: bytes) -> tuple[dict, dict]:
             continue
         produtos.setdefault(key, {})[semana_chave(fim)] = val
         rotulos.setdefault(key, label)
-        amostra_datas.setdefault(key, []).append(fim)
 
-    diag = {
-        "linhas": ws.nrows,
-        "produtos_encontrados": sorted(rotulos.values()),
-        "exemplo_datas_fim": {
-            rotulos[k]: v[-3:] for k, v in amostra_datas.items()
-            if k in rotulos and re.search(r"^gasolina a comum", k)
-        },
-    }
-    return {"series": produtos, "rotulos": rotulos}, diag
+    return ({"series": produtos, "rotulos": rotulos},
+            {"linhas": ws.nrows, "produtos_encontrados": sorted(rotulos.values())})
 
 
 def escolher(produtos: dict, pattern: str) -> str | None:
-    """Primeiro produto cujo nome normalizado casa com o padrao."""
     rx = re.compile(pattern)
     hits = [k for k in produtos if rx.search(k)]
-    if not hits:
-        return None
-    # prefere o rotulo mais curto (menos qualificadores)
-    return sorted(hits, key=len)[0]
+    return sorted(hits, key=len)[0] if hits else None
 
 
-def build(products: dict, raw: dict) -> tuple[dict, dict]:
+def build(products: dict, raw: dict, trib: dict) -> tuple[dict, dict]:
     series, rotulos = raw["series"], raw["rotulos"]
     out, checks = {}, {}
+    inicio = trib["inicio_serie"]
 
     for key, (pattern, fator) in MATCH.items():
         ppi = products.get(key)
@@ -193,32 +226,37 @@ def build(products: dict, raw: dict) -> tuple[dict, dict]:
             continue
 
         real = series[pkey]
-        ded = 0.0
-        if APLICAR_DEDUCAO_TRIBUTOS and key in TRIBUTOS_FEDERAIS:
-            ded = sum(TRIBUTOS_FEDERAIS[key].values())
+        weeks, sem_cobertura = [], 0
 
-        weeks = []
         for w in ppi["weeks"]:
+            chave = semana_chave(w["end"])
+            bruto = real.get(chave)
+            if bruto is None:
+                continue
             vals = [v for v in w["v"] if v is not None]
             if not vals:
                 continue
             ppi_med = sum(vals) / len(vals)
-            r = real.get(semana_chave(w["end"]))
-            if r is None:
+
+            ded = deducao(trib, key, chave) if chave >= inicio else None
+            if ded is None:
+                sem_cobertura += 1
                 continue
-            r = (r - ded) * fator
+
+            r = (bruto - ded) * fator
             weeks.append({
                 "end": w["end"],
                 "label": w["label"],
                 "ppi": round(ppi_med, 6),
                 "real": round(r, 6),
+                "bruto": round(bruto * fator, 6),
                 "gap": round(r - ppi_med, 6),
                 "gap_pct": round((r / ppi_med - 1) * 100, 4) if ppi_med else None,
             })
 
         weeks.sort(key=lambda x: x["end"])
         if not weeks:
-            checks[key] = {"status": "sem semanas em comum", "produto": rotulos[pkey]}
+            checks[key] = {"status": "sem semanas cobertas", "produto": rotulos[pkey]}
             continue
 
         out[key] = {
@@ -227,7 +265,6 @@ def build(products: dict, raw: dict) -> tuple[dict, dict]:
             "unit": ppi["unit"],
             "fonte_realizacao": rotulos[pkey],
             "fator": fator,
-            "deducao_tributos": round(ded, 6),
             "weeks": weeks,
         }
         last = weeks[-1]
@@ -235,60 +272,70 @@ def build(products: dict, raw: dict) -> tuple[dict, dict]:
             "status": "ok",
             "produto": rotulos[pkey],
             "semanas": len(weeks),
+            "semanas_sem_cobertura": sem_cobertura,
             "ultima": last["end"],
             "ppi": last["ppi"],
             "realizacao": last["real"],
             "defasagem_pct": last["gap_pct"],
-            "amostra": weeks[-5:],
         }
 
     return out, checks
 
 
-# Valores publicados na Sintese Semanal de Precos da ANP, edicao 13/2026
-# (semana de referencia 15/03 a 21/03/2026). Servem para conferir a base
-# tributaria e a ordem de grandeza da extracao.
-SINTESE_REF = {
-    "gasolina": {"semana": "2026-03-16", "realizacao": 3.58, "ppi": 3.92},
-    "diesel": {"semana": "2026-03-16", "realizacao": 5.29, "ppi": 6.01},
-    "glp": {"semana": "2026-03-16", "realizacao": 35.91, "ppi": 48.02},
-}
-
-
-def validar(data: dict) -> dict:
-    """Compara o que extraimos com o que a ANP publicou na sintese."""
+def validar(data: dict, raw: dict, trib: dict) -> dict:
+    """Confere contra os valores publicados pela ANP e mede o tributo implicito."""
     res = {}
-    for key, ref in SINTESE_REF.items():
-        p = data.get(key)
-        if not p:
+    for key, refs in SINTESE_REF.items():
+        pkey = escolher(raw["series"], MATCH[key][0]) if key in MATCH else None
+        if not pkey:
             res[key] = {"status": "produto ausente"}
             continue
-        w = next((x for x in p["weeks"] if x["end"].startswith(ref["semana"][:7])
-                  and semana_chave(x["end"]) == ref["semana"]), None)
-        if not w:
-            res[key] = {"status": "semana de referencia ausente"}
-            continue
-        res[key] = {
-            "semana": w["end"],
-            "ppi_calculado": w["ppi"], "ppi_anp": ref["ppi"],
-            "realizacao_calculada": w["real"], "realizacao_anp": ref["realizacao"],
-            "erro_ppi_pct": round((w["ppi"] / ref["ppi"] - 1) * 100, 2),
-            "erro_realizacao_pct": round((w["real"] / ref["realizacao"] - 1) * 100, 2),
-        }
+        fator = MATCH[key][1]
+        itens = []
+        for semana, esperado in sorted(refs.items()):
+            bruto = raw["series"][pkey].get(semana)
+            if bruto is None:
+                itens.append({"semana": semana, "status": "semana ausente"})
+                continue
+            ded = deducao(trib, key, semana)
+            calc = (bruto - (ded or 0)) * fator
+            itens.append({
+                "semana": semana,
+                "anp": esperado,
+                "calculado": round(calc, 4),
+                "erro_pct": round((calc / esperado - 1) * 100, 2) if esperado else None,
+                "tributo_aplicado": ded,
+                "tributo_implicito": round(bruto - esperado / fator, 4),
+            })
+        ppi_chk = []
+        p = data.get(key)
+        if p:
+            for semana, esperado in SINTESE_PPI_REF.get(key, {}).items():
+                w = next((x for x in p["weeks"] if semana_chave(x["end"]) == semana), None)
+                if w:
+                    ppi_chk.append({
+                        "semana": semana, "anp": esperado, "calculado": w["ppi"],
+                        "erro_pct": round((w["ppi"] / esperado - 1) * 100, 2),
+                    })
+        res[key] = {"realizacao": itens, "ppi": ppi_chk}
     return res
 
 
-def write_outputs(data: dict, out_dir: Path) -> None:
+def write_outputs(data: dict, trib: dict, out_dir: Path) -> None:
     payload = {
         "generated_at": datetime.now(BR_TZ).isoformat(timespec="seconds"),
         "source_file": PPIDP_URL,
         "source_page": PPIDP_PAGE,
-        "base_tributaria": (
-            "Ambas as series sem tributos: o PPI da ANP nao inclui tributos e a "
-            "Sintese Semanal da ANP descreve os precos de produtores/importadores "
-            "como livres de tributos."
+        "sintese_page": SINTESE_PAGE,
+        "inicio_serie": trib["inicio_serie"],
+        "metodologia": (
+            "Defasagem = preco de realizacao menos PPI, ambos sem tributos. "
+            "O preco de realizacao e o preco medio ponderado semanal de produtores "
+            "e importadores publicado pela ANP (coluna Brasil), do qual sao "
+            "deduzidos os tributos federais ad rem (PIS/Pasep, Cofins e Cide) "
+            "listados em scripts/tributos.json. Valor negativo indica preco interno "
+            "abaixo da paridade de importacao."
         ),
-        "deducao_aplicada": APLICAR_DEDUCAO_TRIBUTOS,
         "order": [k for k in MATCH if k in data],
         "products": data,
     }
@@ -297,11 +344,10 @@ def write_outputs(data: dict, out_dir: Path) -> None:
 
     rows = [("produto", "unidade", "semana_fim", "ppi", "realizacao",
              "defasagem_abs", "defasagem_pct")]
-    for key, p in data.items():
+    for p in data.values():
         for w in p["weeks"]:
             rows.append((p["label"], p["unit"], w["end"],
-                         f"{w['ppi']:.6f}", f"{w['real']:.6f}",
-                         f"{w['gap']:.6f}",
+                         f"{w['ppi']:.6f}", f"{w['real']:.6f}", f"{w['gap']:.6f}",
                          "" if w["gap_pct"] is None else f"{w['gap_pct']:.4f}"))
     with open(out_dir / "defasagem.csv", "w", newline="", encoding="utf-8") as fh:
         csv.writer(fh).writerows(rows)
@@ -311,6 +357,7 @@ def run(products: dict, out_dir: Path) -> None:
     """Executado ao final do build principal. Nunca levanta excecao."""
     debug = {"source_file": PPIDP_URL, "source_page": PPIDP_PAGE}
     try:
+        trib = carregar_tributos()
         print(f"[ppidp] baixando {PPIDP_URL}")
         blob = download(PPIDP_URL)
         print(f"[ppidp] {len(blob):,} bytes")
@@ -318,17 +365,18 @@ def run(products: dict, out_dir: Path) -> None:
         raw, diag = parse_ppidp(blob)
         debug.update(diag)
 
-        data, checks = build(products, raw)
+        data, checks = build(products, raw, trib)
+        debug["inicio_serie"] = trib["inicio_serie"]
         debug["checagens"] = checks
-        debug["validacao_sintese"] = validar(data)
+        debug["validacao_sintese"] = validar(data, raw, trib)
 
         if data:
-            write_outputs(data, out_dir)
+            write_outputs(data, trib, out_dir)
             for k, c in checks.items():
                 if c.get("status") == "ok":
                     print(f"[ppidp] {k:<9} {c['semanas']:>4} semanas | ate {c['ultima']} "
                           f"| PPI {c['ppi']:.4f} vs realizacao {c['realizacao']:.4f} "
-                          f"| defasagem {c['defasagem_pct']:.2f}%")
+                          f"| defasagem {c['defasagem_pct']:+.2f}%")
                 else:
                     print(f"[ppidp] {k:<9} {c['status']}")
         else:
