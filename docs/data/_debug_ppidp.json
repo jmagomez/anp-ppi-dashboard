@@ -1,185 +1,46 @@
 {
  "source_file": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/ppidp/precos-medios-ponderados-semanais-2013.xls",
  "source_page": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel",
- "bytes": 1999360,
- "magic": "d0cf11e0a1b11ae1",
- "format": "xls (OLE2)",
- "sheets": [
-  {
-   "name": "Preços Produtor e Importador",
-   "nrows": 11379,
-   "ncols": 10,
-   "head": [
-    [
-     "Agência Nacional do Petróleo, Gás Natural e Biocombustíveis",
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null
-    ],
-    [
-     "Superintendência de Defesa da Concorrência",
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null
-    ],
-    [
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null
-    ],
-    [
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null
-    ],
-    [
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null
-    ],
-    [
-     "PREÇOS MÉDIOS PONDERADOS SEMANAIS PRATICADOS POR PRODUTORES ",
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null
-    ],
-    [
-     "IMPORTANTE: O produto 'Óleo Diesel' contempla os diversos ti",
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     null,
-     "(Não inclui ICMS)",
-     null
-    ],
-    [
-     "Produto",
-     "Período",
-     null,
-     "Região",
-     null,
-     null,
-     null,
-     null,
-     "Brasil",
-     null
-    ],
-    [
-     null,
-     "(A partir de 2013)",
-     null,
-     "Norte",
-     "Nordeste",
-     "Centro-Oeste",
-     "Sul",
-     "Sudeste",
-     null,
-     null
-    ],
-    [
-     "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
-     41274.0,
-     41280.0,
-     1.2935999999999999,
-     1.2935999999999999,
-     "***",
-     1.2935999999999999,
-     1.2935999999999999,
-     1.2935999999999999,
-     null
-    ],
-    [
-     "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
-     41281.0,
-     41287.0,
-     1.2935999999999999,
-     1.2935999999999999,
-     "***",
-     1.2935999999999999,
-     1.2935999999999999,
-     1.2935999999999999,
-     null
-    ],
-    [
-     "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
-     41288.0,
-     41294.0,
-     1.2935999999999999,
-     1.2935999999999999,
-     "***",
-     1.2935999999999999,
-     1.2935999999999999,
-     1.2935999999999999,
-     null
-    ],
-    [
-     "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
-     41295.0,
-     41301.0,
-     1.2935999999999999,
-     1.2935999999999999,
-     "***",
-     1.2935999999999999,
-     1.2935999999999999,
-     1.2935999999999999,
-     null
-    ],
-    [
-     "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
-     41302.0,
-     41308.0,
-     1.2935999999999999,
-     1.2935999999999999,
-     "***",
-     1.2935999999999999,
-     1.2935999999999999,
-     1.2935999999999999,
-     null
-    ]
-   ]
-  }
+ "linhas": 11379,
+ "produtos_encontrados": [
+  "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
+  "Asfalto Diluído de Petróleo de Cura Rápida 250 (R$/kg)",
+  "Biodiesel B-100 (R$/litro)",
+  "Cimento Asfáltico de Petróleo 30 45 (R$/kg)",
+  "Cimento Asfáltico de Petróleo 50 70 (R$/kg)",
+  "Gasolina A Comum (R$/litro)",
+  "Gasolina A Premium (R$/litro)",
+  "Gás Liquefeito de Petróleo - GLP (R$/kg)",
+  "Nafta Petroquímica (R$/kg)",
+  "Querosene de Aviação - QAV (R$/litro)",
+  "Óleo Combustível A1 (R$/kg)",
+  "Óleo Combustível A2 (R$/kg)",
+  "Óleo Combustível B1 (R$/kg)",
+  "Óleo Combustível B2 (R$/kg)",
+  "Óleo Diesel Marítimo DMA-MGO (R$/litro)",
+  "Óleo Diesel Não Rodoviário (R$/litro)",
+  "Óleo Diesel S-10 (R$/litro)",
+  "Óleo Diesel S-1800 (R$/litro)",
+  "Óleo Diesel S-500 (R$/litro)",
+  "Óleo Diesel² (R$/litro)"
  ],
- "error": null
+ "checagens": {
+  "gasolina": {
+   "status": "sem semanas em comum",
+   "produto": "Gasolina A Comum (R$/litro)"
+  },
+  "diesel": {
+   "status": "sem semanas em comum",
+   "produto": "Óleo Diesel S-10 (R$/litro)"
+  },
+  "qav": {
+   "status": "sem semanas em comum",
+   "produto": "Querosene de Aviação - QAV (R$/litro)"
+  },
+  "glp": {
+   "status": "sem semanas em comum",
+   "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)"
+  }
+ },
+ "error": "nenhum produto pareado"
 }
