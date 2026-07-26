@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPI ANP · Preços de Paridade de Importação</title>
+<meta name="description" content="Dashboard interativo dos Preços de Paridade de Importação (PPI) da ANP: Gasolina A, Diesel A S10, QAV e GLP.">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<style>
+:root{
+  --bg:#0A0E14; --panel:#111823; --panel2:#0D131C; --line:#1D2733;
+  --txt:#E9EFF7; --muted:#93A3B8; --dim:#5E7089;
+  --up:#F2685C; --down:#35C48F; --grid:rgba(147,163,184,.12);
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  --gasolina:#F2B441; --diesel:#4FA8F5; --qav:#A98BF0; --glp:#35C48F;
+  --accent:var(--gasolina);
+}
+[data-theme="light"]{
+  --bg:#F6F8FB; --panel:#FFFFFF; --panel2:#FBFCFE; --line:#E2E8F0;
+  --txt:#0F1B2D; --muted:#5A6B80; --dim:#8A9AAE;
+  --grid:rgba(15,27,45,.08);
+  --shadow:0 1px 2px rgba(15,27,45,.06), 0 8px 24px -14px rgba(15,27,45,.25);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt);
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+.wrap{max-width:1380px;margin:0 auto;padding:28px 22px 64px}
+
+/* ---------- header ---------- */
+header.top{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-content:space-between;margin-bottom:22px}
+.brand h1{margin:0;font-size:23px;font-weight:650;letter-spacing:-.02em}
+.brand p{margin:5px 0 0;color:var(--muted);font-size:13px;max-width:62ch}
+.badges{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.badge{
+  display:inline-flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);
+  border-radius:999px;padding:6px 13px;font-size:12px;color:var(--muted);white-space:nowrap
+}
+.badge b{color:var(--txt);font-weight:600}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--down);box-shadow:0 0 0 3px color-mix(in srgb,var(--down) 22%,transparent)}
+.icon-btn{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;
+  padding:6px 13px;font-size:12px;cursor:pointer;transition:.15s}
+.icon-btn:hover{color:var(--txt);border-color:var(--dim)}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:6px;margin-bottom:16px;box-shadow:var(--shadow)}
+.tab{flex:1 1 150px;background:transparent;border:0;border-radius:10px;padding:11px 14px;cursor:pointer;
+  color:var(--muted);font:inherit;font-weight:550;text-align:left;transition:.15s;position:relative}
+.tab:hover{color:var(--txt);background:var(--panel2)}
+.tab.on{color:var(--txt);background:color-mix(in srgb,var(--accent) 13%,transparent)}
+.tab.on::after{content:"";position:absolute;left:14px;right:14px;bottom:5px;height:2px;border-radius:2px;background:var(--accent)}
+.tab small{display:block;font-weight:400;font-size:11.5px;color:var(--dim);margin-top:2px}
+
+/* ---------- controls ---------- */
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{background:transparent;border:0;color:var(--muted);font:inherit;font-size:12.5px;
+  padding:6px 12px;border-radius:7px;cursor:pointer;transition:.15s}
+.seg button:hover{color:var(--txt)}
+.seg button.on{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--txt);font-weight:600}
+.spacer{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;
+  padding:5px 11px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.chip:hover{color:var(--txt)}
+.chip .sw{width:8px;height:8px;border-radius:50%;background:var(--dim);transition:.15s}
+.chip.on{color:var(--txt);border-color:var(--dim);background:var(--panel2)}
+
+/* ---------- kpis ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:12px;margin-bottom:18px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--accent);opacity:.85}
+.kpi .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:600}
+.kpi .val{font-size:25px;font-weight:640;letter-spacing:-.02em;margin-top:7px;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:5px}
+.up{color:var(--up)} .down{color:var(--down)}
+
+/* ---------- cards / charts ---------- */
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px 18px;box-shadow:var(--shadow)}
+.card h2{margin:0;font-size:14.5px;font-weight:620;letter-spacing:-.01em}
+.card p.hint{margin:3px 0 12px;font-size:12px;color:var(--dim)}
+.c12{grid-column:span 12} .c8{grid-column:span 8} .c6{grid-column:span 6} .c4{grid-column:span 4}
+@media(max-width:1000px){.c8,.c6,.c4{grid-column:span 12}}
+.chart-box{position:relative;height:330px}
+.chart-box.tall{height:420px}
+
+/* ---------- table ---------- */
+.tbl-tools{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:11px}
+input[type=search]{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;
+  padding:7px 11px;font:inherit;font-size:12.5px;min-width:200px}
+input[type=search]:focus{outline:none;border-color:var(--dim)}
+.tbl-scroll{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+thead th{position:sticky;top:0;z-index:2;background:var(--panel2);color:var(--muted);font-weight:600;
+  text-align:right;padding:9px 11px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+thead th:first-child{text-align:left;left:0;z-index:3}
+tbody td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap;color:var(--txt)}
+tbody td:first-child{text-align:left;color:var(--muted);position:sticky;left:0;background:var(--panel);z-index:1}
+tbody tr:hover td{background:var(--panel2)}
+tbody td.avg{font-weight:640}
+footer{margin-top:36px;color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(--line);padding-top:16px}
+footer a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--dim)}
+footer a:hover{color:var(--txt)}
+.empty{padding:56px 20px;text-align:center;color:var(--muted)}
+.empty code{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Preços de Paridade de Importação · ANP</h1>
+      <p>Série semanal do PPI por terminal de suprimento — Gasolina A, Diesel A S10, QAV e GLP. Fonte oficial: Agência Nacional do Petróleo, Gás Natural e Biocombustíveis.</p>
+    </div>
+    <div class="badges">
+      <span class="badge"><span class="dot"></span>Semana de ref.: <b id="b-week">—</b></span>
+      <span class="badge">Atualizado: <b id="b-updated">—</b></span>
+      <button class="icon-btn" id="theme-btn" type="button">Tema claro</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <div id="app" hidden>
+    <div class="controls">
+      <div class="seg" id="range">
+        <button data-r="3m">3M</button>
+        <button data-r="6m">6M</button>
+        <button data-r="1a" class="on">1A</button>
+        <button data-r="3a">3A</button>
+        <button data-r="5a">5A</button>
+        <button data-r="max">Tudo</button>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="sel-all" type="button">Todos os terminais</button>
+      <button class="icon-btn" id="sel-none" type="button">Limpar seleção</button>
+    </div>
+
+    <div class="chips" id="chips"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid">
+      <section class="card c8">
+        <h2>Série histórica do PPI</h2>
+        <p class="hint" id="hist-hint">Preço por terminal e média nacional simples.</p>
+        <div class="chart-box tall"><canvas id="c-hist"></canvas></div>
+      </section>
+
+      <section class="card c4">
+        <h2>Defasagem por terminal</h2>
+        <p class="hint">Diferença % de cada terminal em relação à média da semana de referência.</p>
+        <div class="chart-box tall"><canvas id="c-gap"></canvas></div>
+      </section>
+
+      <section class="card c6">
+        <h2>Variação semanal da média</h2>
+        <p class="hint">Variação % do PPI médio em relação à semana anterior.</p>
+        <div class="chart-box"><canvas id="c-var"></canvas></div>
+      </section>
+
+      <section class="card c6">
+        <h2>Comparativo entre produtos</h2>
+        <p class="hint">Média nacional de cada produto indexada a 100 no início do período.</p>
+        <div class="chart-box"><canvas id="c-comp"></canvas></div>
+      </section>
+
+      <section class="card c12">
+        <h2>Tabela detalhada</h2>
+        <p class="hint" id="tbl-hint">Clique no cabeçalho para ordenar.</p>
+        <div class="tbl-tools">
+          <input type="search" id="tbl-q" placeholder="Filtrar por semana (ex.: 2026-07)">
+          <div class="spacer"></div>
+          <button class="icon-btn" id="csv-view" type="button">Baixar CSV (visão atual)</button>
+          <a class="icon-btn" id="csv-full" href="./data/ppi_long.csv" download>CSV completo (4 produtos)</a>
+        </div>
+        <div class="tbl-scroll"><table id="tbl"><thead></thead><tbody></tbody></table></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="loading" class="empty">Carregando dados da ANP…</div>
+
+  <footer>
+    <div><b>Fonte:</b> <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-paridade-de-importacao" target="_blank" rel="noopener">ANP — Preços de Paridade de Importação</a> · arquivo <code>ppi.xlsx</code>, abas semanais em R$.</div>
+    <div><b>Metodologia:</b> o PPI é a estimativa da ANP do custo de importação do produto colocado no terminal, incluindo cotação internacional, frete, seguro, taxas portuárias e tributos. A “média” exibida é a média aritmética simples dos terminais com dado publicado na semana — não é ponderada por volume.</div>
+    <div><b>Atenção:</b> a defasagem mostrada aqui compara terminais entre si. Comparar o PPI com o preço de realização da Petrobras exige uma fonte adicional de preços internos, que não faz parte deste arquivo.</div>
+    <div>Atualização automática toda segunda-feira às 20h (BRT) via GitHub Actions. Dados brutos: <a href="./data/ppi.json">ppi.json</a> · <a href="./data/meta.json">meta.json</a></div>
+  </footer>
+</div>
+
+<script>
+const PALETTE = {gasolina:'#F2B441', diesel:'#4FA8F5', qav:'#A98BF0', glp:'#35C48F'};
+const RANGE_MONTHS = {'3m':3,'6m':6,'1a':12,'3a':36,'5a':60};
+
+let DATA=null;
+const state = {p:null, range:'1a', sel:new Set(), sort:{col:0,dir:-1}, q:''};
+const charts = {};
+
+/* ------------------------- helpers ------------------------- */
+const $ = s => document.querySelector(s);
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const P = () => DATA.products[state.p];
+const dec = () => /litro/i.test(P().unit) ? 4 : 2;
+
+function nfmt(v, d){
+  if(v===null || v===undefined || Number.isNaN(v)) return '—';
+  const n = d===undefined ? dec() : d;
+  return v.toLocaleString('pt-BR',{minimumFractionDigits:n, maximumFractionDigits:n});
+}
+function pfmt(v){
+  if(v===null || v===undefined || Number.isNaN(v)) return '—';
+  return (v>0?'+':'') + v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+}
+function dfmt(iso){
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function mean(arr){
+  const v = arr.filter(x => x!==null && x!==undefined && !Number.isNaN(x));
+  return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
+}
+function termColor(i, total){
+  const base = {gasolina:42, diesel:210, qav:262, glp:160}[state.p] ?? 210;
+  const hue = (base - 40 + (80 * i / Math.max(total-1,1)) + 360) % 360;
+  return `hsl(${hue.toFixed(0)} 62% 58%)`;
+}
+function weeksInRange(product){
+  const w = product.weeks;
+  if(state.range === 'max' || !w.length) return w;
+  const last = new Date(w[w.length-1].end + 'T12:00:00');
+  const cut = new Date(last);
+  cut.setMonth(cut.getMonth() - RANGE_MONTHS[state.range]);
+  return w.filter(x => new Date(x.end + 'T12:00:00') >= cut);
+}
+function selIdx(){
+  const locs = P().locations;
+  const idx = locs.map((n,i)=>[n,i]).filter(([n])=>state.sel.has(n)).map(([,i])=>i);
+  return idx.length ? idx : locs.map((_,i)=>i);
+}
+function avgSeries(product, weeks, idx){
+  return weeks.map(w => mean(idx ? idx.map(i=>w.v[i]) : w.v));
+}
+
+/* ------------------------- chart defaults ------------------------- */
+function applyChartTheme(){
+  if(!window.Chart) return;
+  Chart.defaults.color = cssVar('--muted');
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.font.size = 11.5;
+  Chart.defaults.borderColor = cssVar('--grid');
+  Chart.defaults.animation.duration = 380;
+  Chart.defaults.plugins.tooltip.backgroundColor = cssVar('--panel2');
+  Chart.defaults.plugins.tooltip.titleColor = cssVar('--txt');
+  Chart.defaults.plugins.tooltip.bodyColor = cssVar('--txt');
+  Chart.defaults.plugins.tooltip.borderColor = cssVar('--line');
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.tooltip.cornerRadius = 8;
+  Chart.defaults.plugins.tooltip.boxPadding = 5;
+}
+function draw(id, cfg){
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), cfg);
+}
+
+/* ------------------------- render: tabs & chips ------------------------- */
+function renderTabs(){
+  const el = $('#tabs');
+  el.innerHTML = '';
+  DATA.order.forEach(k => {
+    const p = DATA.products[k];
+    const last = p.weeks[p.weeks.length-1];
+    const b = document.createElement('button');
+    b.className = 'tab' + (k===state.p ? ' on' : '');
+    b.innerHTML = `${p.title}<small>${p.unit} · ${nfmt(mean(last.v), /litro/i.test(p.unit)?4:2)} · ${p.locations.length} terminais</small>`;
+    b.onclick = () => { state.p = k; state.sel = new Set(p.locations); renderAll(); };
+    el.appendChild(b);
+  });
+  document.documentElement.style.setProperty('--accent', PALETTE[state.p] || cssVar('--gasolina'));
+}
+function renderChips(){
+  const el = $('#chips');
+  el.innerHTML = '';
+  P().locations.forEach((name,i) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (state.sel.has(name) ? ' on' : '');
+    b.innerHTML = `<span class="sw" style="background:${state.sel.has(name)?termColor(i,P().locations.length):'var(--dim)'}"></span>${name}`;
+    b.onclick = () => {
+      state.sel.has(name) ? state.sel.delete(name) : state.sel.add(name);
+      renderChips(); renderKPIs(); renderCharts(); renderTable();
+    };
+    el.appendChild(b);
+  });
+}
+
+/* ------------------------- render: KPIs ------------------------- */
+function renderKPIs(){
+  const p = P(), idx = selIdx(), w = p.weeks;
+  const last = w[w.length-1], prev = w[w.length-2];
+  const vals = idx.map(i=>last.v[i]).filter(v=>v!==null);
+  const avgNow = mean(idx.map(i=>last.v[i]));
+  const avgPrev = prev ? mean(idx.map(i=>prev.v[i])) : null;
+  const wow = (avgNow!==null && avgPrev) ? (avgNow/avgPrev-1)*100 : null;
+
+  const target = new Date(last.end + 'T12:00:00'); target.setFullYear(target.getFullYear()-1);
+  let yoyWeek = null, best = Infinity;
+  w.forEach(x => { const d = Math.abs(new Date(x.end+'T12:00:00') - target); if(d < best){best = d; yoyWeek = x;} });
+  const avgYoy = yoyWeek ? mean(idx.map(i=>yoyWeek.v[i])) : null;
+  const yoy = (avgNow!==null && avgYoy) ? (avgNow/avgYoy-1)*100 : null;
+
+  const max = vals.length ? Math.max(...vals) : null;
+  const min = vals.length ? Math.min(...vals) : null;
+  const spread = (max!==null && min!==null) ? max-min : null;
+  const names = idx.map(i=>p.locations[i]);
+  const iMax = vals.length ? names[idx.map(i=>last.v[i]).indexOf(max)] : '—';
+  const iMin = vals.length ? names[idx.map(i=>last.v[i]).indexOf(min)] : '—';
+
+  const cards = [
+    {lab:'PPI médio', val:nfmt(avgNow), sub:`${p.unit} · ${vals.length} terminais com dado`},
+    {lab:'Variação semanal', val:pfmt(wow), sub:prev?`vs. semana encerrada em ${dfmt(prev.end)}`:'—', cls:wow>0?'up':(wow<0?'down':'')},
+    {lab:'Variação 12 meses', val:pfmt(yoy), sub:yoyWeek?`vs. ${dfmt(yoyWeek.end)}`:'—', cls:yoy>0?'up':(yoy<0?'down':'')},
+    {lab:'Amplitude entre terminais', val:nfmt(spread), sub:(spread!==null&&avgNow)?`${pfmt(spread/avgNow*100).replace('+','')} da média`:'—'},
+    {lab:'Mais caro / mais barato', val:`${iMax}`, sub:`mais barato: ${iMin}`}
+  ];
+  $('#kpis').innerHTML = cards.map(c => `
+    <div class="kpi">
+      <div class="lab">${c.lab}</div>
+      <div class="val ${c.cls||''}" style="${c.lab.startsWith('Mais')?'font-size:17px':''}">${c.val}</div>
+      <div class="sub">${c.sub}</div>
+    </div>`).join('');
+
+  $('#b-week').textContent = last.label;
+  $('#hist-hint').textContent = `${p.title} · ${p.unit} · média nacional simples destacada em branco.`;
+}
+
+/* ------------------------- render: charts ------------------------- */
+function renderCharts(){
+  const p = P(), idx = selIdx();
+  const weeks = weeksInRange(p);
+  const labels = weeks.map(w => dfmt(w.end));
+  const n = p.locations.length;
+
+  // 1) histórico
+  const lines = idx.map(i => ({
+    label: p.locations[i],
+    data: weeks.map(w => w.v[i]),
+    borderColor: termColor(i, n),
+    borderWidth: 1.15,
+    pointRadius: 0, pointHoverRadius: 3, tension: .25, spanGaps: true
+  }));
+  lines.push({
+    label:'Média',
+    data: avgSeries(p, weeks, idx),
+    borderColor: cssVar('--txt'),
+    borderWidth: 2.4, pointRadius: 0, pointHoverRadius: 4, tension: .25, spanGaps: true, order: -1
+  });
+  draw('c-hist', {
+    type:'line',
+    data:{labels, datasets:lines},
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,
+          callbacks:{label:c=>` ${c.dataset.label}: ${nfmt(c.parsed.y)} ${p.unit}`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{maxTicksLimit:10,autoSkip:true}},
+        y:{grid:{color:cssVar('--grid')},ticks:{callback:v=>nfmt(v, dec()===4?2:2)}}
+      }
+    }
+  });
+
+  // 2) defasagem por terminal (última semana)
+  const last = p.weeks[p.weeks.length-1];
+  const avgLast = mean(idx.map(i=>last.v[i]));
+  const gaps = idx.map(i => ({name:p.locations[i], v:last.v[i]}))
+                  .filter(o => o.v!==null && avgLast)
+                  .map(o => ({name:o.name, g:(o.v/avgLast-1)*100, v:o.v}))
+                  .sort((a,b)=>b.g-a.g);
+  draw('c-gap', {
+    type:'bar',
+    data:{
+      labels: gaps.map(g=>g.name),
+      datasets:[{
+        data: gaps.map(g=>g.g),
+        backgroundColor: gaps.map(g=>g.g>=0 ? cssVar('--up') : cssVar('--down')),
+        borderRadius:4, barPercentage:.82, categoryPercentage:.9
+      }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${pfmt(c.parsed.x)} · ${nfmt(gaps[c.dataIndex].v)} ${p.unit}`}}},
+      scales:{
+        x:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(1)+'%'}},
+        y:{grid:{display:false},ticks:{font:{size:10.5}}}
+      }
+    }
+  });
+
+  // 3) variação semanal da média
+  const avg = avgSeries(p, weeks, idx);
+  const vars = avg.map((v,i)=> (i===0||!avg[i-1]||v===null) ? null : (v/avg[i-1]-1)*100);
+  draw('c-var', {
+    type:'bar',
+    data:{labels, datasets:[{
+      data:vars,
+      backgroundColor: vars.map(v => v===null ? 'transparent' : (v>=0 ? cssVar('--up') : cssVar('--down'))),
+      borderRadius:3, barPercentage:.9, categoryPercentage:.94
+    }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${pfmt(c.parsed.y)}`}}},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:9}},
+              y:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(1)+'%'}}}
+    }
+  });
+
+  // 4) comparativo indexado (base 100)
+  const refEnds = weeks.map(w=>w.end);
+  const comp = DATA.order.map(k => {
+    const q = DATA.products[k];
+    const map = new Map(q.weeks.map(w=>[w.end, mean(w.v)]));
+    const series = refEnds.map(e => map.has(e) ? map.get(e) : null);
+    const base = series.find(v => v!==null && v!==0);
+    return {
+      label: q.title,
+      data: series.map(v => (v===null||!base) ? null : v/base*100),
+      borderColor: PALETTE[k],
+      backgroundColor: PALETTE[k],
+      borderWidth: k===state.p ? 2.6 : 1.5,
+      pointRadius:0, pointHoverRadius:3, tension:.25, spanGaps:true
+    };
+  });
+  draw('c-comp', {
+    type:'line',
+    data:{labels, datasets:comp},
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'line',boxWidth:22,padding:14}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${nfmt(c.parsed.y,1)}`}}
+      },
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:9}},
+              y:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(0)}}}
+    }
+  });
+}
+
+/* ------------------------- render: table ------------------------- */
+function tableRows(){
+  const p = P(), idx = selIdx();
+  const weeks = weeksInRange(p).filter(w => !state.q || w.label.toLowerCase().includes(state.q) || w.end.includes(state.q));
+  const rows = weeks.map(w => {
+    const vals = idx.map(i => w.v[i]);
+    return {key:w.end, label:w.label, vals, avg:mean(vals)};
+  });
+  const {col,dir} = state.sort;
+  rows.sort((a,b)=>{
+    let x,y;
+    if(col===0){x=a.key;y=b.key;}
+    else if(col===idx.length+1){x=a.avg;y=b.avg;}
+    else {x=a.vals[col-1];y=b.vals[col-1];}
+    if(x===null||x===undefined) return 1;
+    if(y===null||y===undefined) return -1;
+    return x>y ? dir : (x<y ? -dir : 0);
+  });
+  return {rows, idx, p};
+}
+function renderTable(){
+  const {rows, idx, p} = tableRows();
+  const heads = ['Semana', ...idx.map(i=>p.locations[i]), 'Média'];
+  const arrow = i => state.sort.col===i ? (state.sort.dir===1?' ▲':' ▼') : '';
+  $('#tbl thead').innerHTML = '<tr>' + heads.map((h,i)=>`<th data-i="${i}">${h}${arrow(i)}</th>`).join('') + '</tr>';
+  $('#tbl thead').querySelectorAll('th').forEach(th => th.onclick = () => {
+    const i = +th.dataset.i;
+    state.sort = {col:i, dir: state.sort.col===i ? -state.sort.dir : -1};
+    renderTable();
+  });
+  $('#tbl tbody').innerHTML = rows.map(r =>
+    `<tr><td>${r.label}</td>${r.vals.map(v=>`<td>${nfmt(v)}</td>`).join('')}<td class="avg">${nfmt(r.avg)}</td></tr>`
+  ).join('');
+  $('#tbl-hint').textContent = `${rows.length} semanas · ${idx.length} terminais · valores em ${p.unit}. Clique no cabeçalho para ordenar.`;
+}
+function downloadCSV(){
+  const {rows, idx, p} = tableRows();
+  const head = ['semana','semana_fim', ...idx.map(i=>p.locations[i]), 'media'];
+  const body = rows.map(r => [r.label, r.key, ...r.vals.map(v=>v===null?'':v.toFixed(6)), r.avg===null?'':r.avg.toFixed(6)]);
+  const csv = [head, ...body].map(l => l.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'}));
+  const a = document.createElement('a');
+  a.href = url; a.download = `ppi_${state.p}_${state.range}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ------------------------- orchestration ------------------------- */
+function renderAll(){
+  renderTabs(); renderChips(); renderKPIs(); renderCharts(); renderTable();
+}
+
+function bindUI(){
+  $('#range').querySelectorAll('button').forEach(b => b.onclick = () => {
+    state.range = b.dataset.r;
+    $('#range').querySelectorAll('button').forEach(x => x.classList.toggle('on', x===b));
+    renderCharts(); renderTable();
+  });
+  $('#sel-all').onclick = () => { state.sel = new Set(P().locations); renderChips(); renderKPIs(); renderCharts(); renderTable(); };
+  $('#sel-none').onclick = () => { state.sel = new Set(); renderChips(); renderKPIs(); renderCharts(); renderTable(); };
+  $('#tbl-q').oninput = e => { state.q = e.target.value.trim().toLowerCase(); renderTable(); };
+  $('#csv-view').onclick = downloadCSV;
+  $('#theme-btn').onclick = () => {
+    const light = document.documentElement.getAttribute('data-theme') === 'light';
+    document.documentElement.setAttribute('data-theme', light ? 'dark' : 'light');
+    $('#theme-btn').textContent = light ? 'Tema claro' : 'Tema escuro';
+    applyChartTheme(); renderCharts();
+  };
+}
+
+async function boot(){
+  try{
+    const r = await fetch('./data/ppi.json', {cache:'no-cache'});
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    DATA = await r.json();
+  }catch(err){
+    $('#loading').innerHTML = `<p><b>Dados ainda não gerados.</b></p>
+      <p>Rode o workflow <code>Atualizar PPI (ANP)</code> no GitHub Actions para criar <code>docs/data/ppi.json</code>.</p>
+      <p style="color:var(--dim)">${err.message}</p>`;
+    return;
+  }
+  await new Promise(res => { if(window.Chart) return res(); window.addEventListener('load', res, {once:true}); });
+  applyChartTheme();
+  state.p = DATA.order[0];
+  state.sel = new Set(DATA.products[state.p].locations);
+  $('#b-updated').textContent = new Date(DATA.generated_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  $('#loading').hidden = true;
+  $('#app').hidden = false;
+  bindUI();
+  renderAll();
+}
+boot();
+</script>
+</body>
+</html>
