@@ -394,7 +394,7 @@ function renderCharts(){
       datasets:[{
         data: gaps.map(g=>g.g),
         backgroundColor: gaps.map(g=>g.g>=0 ? cssVar('--up') : cssVar('--down')),
-        borderRadius:4, barPercentage:.82, categoryPercentage:.9
+        borderRadius:4, barPercentage:.82, categoryPercentage:.9, maxBarThickness:26
       }]
     },
     options:{
@@ -416,7 +416,7 @@ function renderCharts(){
     data:{labels, datasets:[{
       data:vars,
       backgroundColor: vars.map(v => v===null ? 'transparent' : (v>=0 ? cssVar('--up') : cssVar('--down'))),
-      borderRadius:3, barPercentage:.9, categoryPercentage:.94
+      borderRadius:3, barPercentage:.9, categoryPercentage:.94, maxBarThickness:22
     }]},
     options:{
       responsive:true, maintainAspectRatio:false,
