@@ -9,14 +9,19 @@
     "duas series na mesma base, deduzimos estes valores do preco de produtor.",
     "",
     "Fonte primaria: ANP, Sintese Semanal de Precos dos Combustiveis, nota (9),",
-    "que remete ao Decreto 5.059/2004, Decreto 5.060/2004, Decreto 10.527/2020 e",
-    "Lei 9.718/1998. As vigencias sao conferidas empiricamente a cada execucao",
-    "contra os valores de REALIZACAO publicados na propria sintese (ver",
-    "docs/data/_debug_ppidp.json, secao validacao_sintese).",
+    "que remete ao Decreto 5.059/2004, ao Decreto 5.060/2004, ao Decreto",
+    "10.527/2020 e a Lei 9.718/1998.",
     "",
-    "Para corrigir ou estender a serie, edite as faixas abaixo. Semanas anteriores",
-    "a inicio_serie ficam sem defasagem publicada, em vez de receberem um numero",
-    "calculado sobre base tributaria desconhecida."
+    "Cada faixa aceita 'pis', 'cofins' e 'cide' (somados) ou 'total', quando o",
+    "valor foi ajustado empiricamente e a reparticao entre tributos nao e conhecida.",
+    "",
+    "Conferencia: a cada execucao o pipeline compara o preco de realizacao",
+    "reconstruido com os valores publicados pela ANP na Sintese Semanal. O",
+    "resultado fica em docs/data/_debug_ppidp.json, secao validacao_sintese, no",
+    "campo 'tributo_implicito'. Se o implicito divergir do aplicado, corrija aqui.",
+    "",
+    "Semanas anteriores a inicio_serie ficam sem defasagem publicada, em vez de",
+    "receberem um numero calculado sobre base tributaria desconhecida."
   ],
   "inicio_serie": "2023-09-04",
   "faixas": [
@@ -27,34 +32,34 @@
       "pis": 0.1411,
       "cofins": 0.6514,
       "cide": 0.10,
-      "fonte": "ANP, Sintese Semanal de Precos, nota (9)"
+      "fonte": "ANP, Sintese Semanal de Precos, nota (9)",
+      "conferido": "4 semanas de 2026 (ed. 13/2026): tributo implicito entre 0,8907 e 0,8958"
     },
     {
       "produto": "diesel",
       "de": "2023-09-04",
-      "ate": "2026-03-12",
-      "pis": 0.0554,
-      "cofins": 0.2926,
-      "cide": 0.0,
-      "fonte": "Regime ad rem vigente ate a MP 1.340/2026; valor conferido empiricamente"
+      "ate": "2026-03-01",
+      "total": 0.3550,
+      "fonte": "Regime ad rem vigente ate a desoneracao de 2026",
+      "conferido": "semana de 23/02/2026: tributo implicito 0,3552 (ANP publica com 2 casas)",
+      "_obs": "Ajustado empiricamente. A reparticao entre PIS/Pasep e Cofins nao foi itemizada e as semanas de 2023 a 2025 nao tem ponto de conferencia independente."
     },
     {
       "produto": "diesel",
-      "de": "2026-03-13",
+      "de": "2026-03-02",
       "ate": "2026-12-31",
-      "pis": 0.0,
-      "cofins": 0.0,
-      "cide": 0.0,
-      "fonte": "MP 1.340/2026 e Decreto 12.878/2026, citados na nota (9) da ANP"
+      "total": 0.0,
+      "fonte": "Desoneracao do diesel: MP 1.340/2026 e Decreto 12.878/2026, citados na nota (9) da ANP",
+      "conferido": "semanas de 02/03, 09/03 e 16/03/2026: tributo implicito entre -0,0038 e 0,0029",
+      "_obs": "A ANP cita 12 e 13/03/2026 como datas dos atos, mas o dado de produtor ja aparece sem tributo na semana iniciada em 02/03/2026; a vigencia aqui segue o dado observado."
     },
     {
       "produto": "glp",
       "de": "2023-09-04",
       "ate": null,
-      "pis": 0.0,
-      "cofins": 0.0,
-      "cide": 0.0,
-      "fonte": "A composicao de precos do GLP publicada pela ANP nao traz parcela federal"
+      "total": 0.0,
+      "fonte": "A composicao de precos do GLP publicada pela ANP nao traz parcela federal",
+      "conferido": "4 semanas de 2026: tributo implicito entre -0,0002 e 0,0004"
     }
   ]
 }
