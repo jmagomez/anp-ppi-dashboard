@@ -1,7 +1,7 @@
 {
  "source_file": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/ppidp/precos-medios-ponderados-semanais-2013.xls",
  "source_page": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel",
- "linhas": 11379,
+ "linhas": 11394,
  "produtos_encontrados": [
   "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
   "Asfalto Diluído de Petróleo de Cura Rápida 250 (R$/kg)",
@@ -29,32 +29,32 @@
   "gasolina": {
    "status": "ok",
    "produto": "Gasolina A Comum (R$/litro)",
-   "semanas": 150,
+   "semanas": 151,
    "semanas_sem_cobertura": 252,
-   "ultima": "2026-07-17",
-   "ppi": 3.603371,
-   "realizacao": 2.90969,
-   "defasagem_pct": -19.2509
+   "ultima": "2026-07-24",
+   "ppi": 3.744198,
+   "realizacao": 2.82914,
+   "defasagem_pct": -24.4394
   },
   "diesel": {
    "status": "ok",
    "produto": "Óleo Diesel S-10 (R$/litro)",
-   "semanas": 150,
+   "semanas": 151,
    "semanas_sem_cobertura": 252,
-   "ultima": "2026-07-17",
-   "ppi": 5.279189,
-   "realizacao": 3.80761,
-   "defasagem_pct": -27.8751
+   "ultima": "2026-07-24",
+   "ppi": 5.60939,
+   "realizacao": 5.32019,
+   "defasagem_pct": -5.1556
   },
   "glp": {
    "status": "ok",
    "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)",
-   "semanas": 150,
+   "semanas": 151,
    "semanas_sem_cobertura": 252,
-   "ultima": "2026-07-17",
-   "ppi": 38.116,
-   "realizacao": 36.57121,
-   "defasagem_pct": -4.0529
+   "ultima": "2026-07-24",
+   "ppi": 39.923,
+   "realizacao": 36.35671,
+   "defasagem_pct": -8.9329
   }
  },
  "validacao_sintese": {
