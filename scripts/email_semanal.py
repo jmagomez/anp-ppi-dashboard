@@ -181,8 +181,11 @@ def lacunas(ppi, defas):
     # Aliquotas: faixa vencida (semanas ja saindo da serie) ou perto de vencer.
     # Sem este aviso, o produto encolhe no grafico sem que nada sinalize -- foi
     # exatamente o que aconteceria com o QAV depois de 31/07/2026.
+    # Nivel "info" fica so no dashboard: e o buraco historico e deliberado,
+    # que repetido toda semana no e-mail vira ruido.
     for a in defas.get("avisos_cobertura", []):
-        out.append(a["texto"])
+        if a.get("nivel") in ("erro", "aviso"):
+            out.append(a["texto"])
     return out
 
 
