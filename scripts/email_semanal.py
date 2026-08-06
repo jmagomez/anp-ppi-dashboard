@@ -174,9 +174,15 @@ def lacunas(ppi, defas):
             )
 
     faltando = [ppi["products"][k]["title"] for k in ppi["order"]
-                if k not in defas.get("products", {}) and k != "qav"]
+                if k not in defas.get("products", {})]
     if faltando:
         out.append("Sem defasagem calculada para: " + ", ".join(faltando) + ".")
+
+    # Aliquotas: faixa vencida (semanas ja saindo da serie) ou perto de vencer.
+    # Sem este aviso, o produto encolhe no grafico sem que nada sinalize -- foi
+    # exatamente o que aconteceria com o QAV depois de 31/07/2026.
+    for a in defas.get("avisos_cobertura", []):
+        out.append(a["texto"])
     return out
 
 
