@@ -31,6 +31,11 @@
    "produto": "Gasolina A Comum (R$/litro)",
    "semanas": 151,
    "semanas_sem_cobertura": 252,
+   "semanas_sem_faixa": 0,
+   "cobertura": {
+    "sem_faixa": 0,
+    "sem_faixa_recente": 0
+   },
    "ultima": "2026-07-24",
    "ppi": 3.744198,
    "realizacao": 2.82914,
@@ -41,6 +46,12 @@
    "produto": "Óleo Diesel S-10 (R$/litro)",
    "semanas": 151,
    "semanas_sem_cobertura": 252,
+   "semanas_sem_faixa": 0,
+   "cobertura": {
+    "sem_faixa": 0,
+    "sem_faixa_recente": 0,
+    "vigencia_ate": "2026-12-31"
+   },
    "ultima": "2026-07-24",
    "ppi": 5.60939,
    "realizacao": 5.32019,
@@ -51,6 +62,14 @@
    "produto": "Querosene de Aviação - QAV (R$/litro)",
    "semanas": 150,
    "semanas_sem_cobertura": 253,
+   "semanas_sem_faixa": 1,
+   "cobertura": {
+    "sem_faixa": 1,
+    "sem_faixa_recente": 0,
+    "de": "2026-04-06",
+    "ate": "2026-04-06",
+    "vigencia_ate": "2026-07-31"
+   },
    "ultima": "2026-07-24",
    "ppi": 5.558056,
    "realizacao": 4.86356,
@@ -61,6 +80,11 @@
    "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)",
    "semanas": 151,
    "semanas_sem_cobertura": 252,
+   "semanas_sem_faixa": 0,
+   "cobertura": {
+    "sem_faixa": 0,
+    "sem_faixa_recente": 0
+   },
    "ultima": "2026-07-24",
    "ppi": 39.923,
    "realizacao": 36.35671,
@@ -200,5 +224,36 @@
     }
    ]
   }
- }
+ },
+ "links": {
+  "sintese": {
+   "url": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis",
+   "status": 200,
+   "ok": true
+  },
+  "sintese_fallback": {
+   "url": "https://www.gov.br/anp/pt-br/centrais-de-conteudo/publicacoes/sinteses",
+   "status": 200,
+   "ok": true
+  },
+  "ppidp": {
+   "url": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel",
+   "status": 200,
+   "ok": true
+  }
+ },
+ "avisos_cobertura": [
+  {
+   "produto": "qav",
+   "label": "QAV",
+   "nivel": "erro",
+   "texto": "QAV: a aliquota vigente venceu em 2026-07-31 e nao ha prorrogacao em tributos.json. A serie ainda esta completa porque o dado da ANP nao passou dessa data, mas a proxima semana publicada ficara de fora."
+  },
+  {
+   "produto": "qav",
+   "label": "QAV",
+   "nivel": "info",
+   "texto": "QAV: 1 semana(s) no meio da serie ficam de fora por nao haver aliquota unica no periodo (2026-04-06 a 2026-04-06) -- exclusao deliberada, nao falta de dado."
+  }
+ ]
 }
