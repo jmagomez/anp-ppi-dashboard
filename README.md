@@ -44,7 +44,7 @@ semana ISO de cada data final.
 ### Conferência automática
 
 A cada execução o resultado é comparado com os valores que a própria ANP publica na
-[Síntese Semanal de Preços](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-de-precos)
+[Síntese Semanal de Preços](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis)
 (edição 13/2026, 12 pontos de controle). Última conferência:
 
 | Produto | Erro no PPI | Erro na realização | Tributo implícito | Tributo aplicado |
@@ -72,6 +72,22 @@ Se o **tributo implícito** divergir do **aplicado**, a alíquota mudou — corr
   não apenas da Petrobras.
 - A defasagem **não é margem nem lucro**: ignora custos logísticos, tributos estaduais e a
   estrutura comercial de cada agente.
+
+### Aviso de cobertura de alíquota
+
+Uma faixa de `tributos.json` pode ter prazo — a desoneração do QAV vale até 31/07/2026, a do
+diesel até 31/12/2026. Passada a data, `deducao()` devolve `None`, a semana é descartada e o
+produto **encolhe no gráfico sem erro nenhum**. Para que isso não passe despercebido, a cada
+execução o pipeline emite dois tipos de aviso, publicados em `defasagem.json`
+(`avisos_cobertura`), no log, no e-mail semanal e no topo da metodologia do dashboard:
+
+| nível | quando | texto |
+|---|---|---|
+| `erro` | há semanas com dado da ANP e sem alíquota declarada | quantas semanas e o intervalo |
+| `erro` | a última faixa já venceu | data do vencimento |
+| `aviso` | a última faixa vence em até 45 dias | data e dias restantes |
+
+Faixa sem data final (`"ate": null`, caso de gasolina e GLP) nunca gera aviso.
 
 ## E-mail semanal
 
@@ -147,6 +163,6 @@ python -m http.server 8000 --directory docs
 
 - ANP — [Preços de Paridade de Importação](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-paridade-de-importacao)
 - ANP — [Preços de produtores e importadores de derivados de petróleo e biodiesel](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel)
-- ANP — [Síntese Semanal de Preços dos Combustíveis](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-de-precos)
+- ANP — [Síntese Semanal de Preços dos Combustíveis](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis)
 
 Dados públicos; este repositório apenas coleta, organiza e visualiza.
