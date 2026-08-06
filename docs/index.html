@@ -520,13 +520,22 @@ function renderCharts(){
 
 function renderMetodologia(){
   if(!DEF){ $('#meto').textContent = 'Série de defasagem indisponível nesta execução.'; return; }
-  $('#meto').innerHTML =
+  // Alíquota vencida ou prestes a vencer: sem este aviso o produto encolhe no
+  // gráfico e nada na tela explica por quê.
+  const av = (DEF.avisos_cobertura || []);
+  const cor = av.some(a => a.nivel === 'erro') ? 'var(--down)' : 'var(--dim)';
+  const box = !av.length ? '' :
+    `<div style="border-left:2px solid ${cor};background:var(--panel2);border-radius:0 8px 8px 0;` +
+    `padding:10px 12px;margin-bottom:12px"><b>Cobertura de alíquotas.</b><br>` +
+    av.map(a => a.texto).join('<br>') + `</div>`;
+  $('#meto').innerHTML = box +
     `<b>Como é calculado.</b> A defasagem é o preço de realização menos o PPI, na mesma base tributária. ` +
     `O PPI é publicado pela ANP sem tributos; o preço de realização vem da planilha semanal de produtores e ` +
     `importadores da ANP (coluna Brasil), que inclui PIS/Pasep, Cofins e Cide — esses tributos são deduzidos ` +
     `com as alíquotas <i>ad rem</i> versionadas em <code>scripts/tributos.json</code>.<br><br>` +
     `<b>Conferência.</b> A cada execução o resultado é comparado com os valores de realização e de PPI que a ` +
-    `própria ANP publica na Síntese Semanal de Preços. Na última conferência o erro máximo foi de 0,12%. ` +
+    `própria ANP publica na <a href="${DEF.sintese_page || '#'}" target="_blank" rel="noopener">Síntese Semanal de Preços</a>. ` +
+    `Na última conferência o erro máximo foi de 0,12%. ` +
     `<b>O QAV é a exceção:</b> a Síntese não cobre esse produto, então não há realização publicada para conferir. ` +
     `A dedução vem direto do Decreto 5.059/2004 (art. 2º, IV — PIS R$ 12,69/m³ e Cofins R$ 58,51/m³, ou R$ 0,0712/l) ` +
     `com a Cide zerada pelo Decreto 5.060/2004, e está zerada de 13/04/2026 a 31/07/2026 pelos Decretos 12.924 e 12.991/2026. ` +
