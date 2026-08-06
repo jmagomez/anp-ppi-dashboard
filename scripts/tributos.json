@@ -1,7 +1,7 @@
 {
   "_nota": [
     "Tributos federais ad rem incidentes sobre a comercializacao de combustiveis,",
-    "em R$ por litro (gasolina e diesel) ou por kg (GLP).",
+    "em R$ por litro (gasolina, diesel e QAV) ou por kg (GLP).",
     "",
     "Por que existe este arquivo: a planilha de Precos Medios Ponderados Semanais",
     "de produtores e importadores da ANP inclui Cide, PIS/Pasep e Cofins, enquanto",
@@ -10,7 +10,8 @@
     "",
     "Fonte primaria: ANP, Sintese Semanal de Precos dos Combustiveis, nota (9),",
     "que remete ao Decreto 5.059/2004, ao Decreto 5.060/2004, ao Decreto",
-    "10.527/2020 e a Lei 9.718/1998.",
+    "10.527/2020 e a Lei 9.718/1998. Para o QAV, que a Sintese nao cobre, a fonte",
+    "e o proprio Decreto 5.059/2004 (art. 2o, IV) e o Decreto 5.060/2004.",
     "",
     "Cada faixa aceita 'pis', 'cofins' e 'cide' (somados) ou 'total', quando o",
     "valor foi ajustado empiricamente e a reparticao entre tributos nao e conhecida.",
@@ -19,9 +20,13 @@
     "reconstruido com os valores publicados pela ANP na Sintese Semanal. O",
     "resultado fica em docs/data/_debug_ppidp.json, secao validacao_sintese, no",
     "campo 'tributo_implicito'. Se o implicito divergir do aplicado, corrija aqui.",
+    "A Sintese nao publica realizacao de QAV, entao esse produto nao tem ponto de",
+    "conferencia externo -- ver o campo _conferencia da faixa.",
     "",
     "Semanas anteriores a inicio_serie ficam sem defasagem publicada, em vez de",
-    "receberem um numero calculado sobre base tributaria desconhecida."
+    "receberem um numero calculado sobre base tributaria desconhecida. O mesmo",
+    "vale para semanas fora de qualquer faixa: deducao() devolve None e a semana",
+    "e descartada, em vez de entrar com tributo zero por omissao."
   ],
   "inicio_serie": "2023-09-04",
   "faixas": [
@@ -31,7 +36,7 @@
       "ate": null,
       "pis": 0.1411,
       "cofins": 0.6514,
-      "cide": 0.10,
+      "cide": 0.1,
       "fonte": "ANP, Sintese Semanal de Precos, nota (9)",
       "conferido": "4 semanas de 2026 (ed. 13/2026): tributo implicito entre 0,8907 e 0,8958"
     },
@@ -39,7 +44,7 @@
       "produto": "diesel",
       "de": "2023-09-04",
       "ate": "2026-03-01",
-      "total": 0.3550,
+      "total": 0.355,
       "fonte": "Regime ad rem vigente ate a desoneracao de 2026",
       "conferido": "semana de 23/02/2026: tributo implicito 0,3552 (ANP publica com 2 casas)",
       "_obs": "Ajustado empiricamente. A reparticao entre PIS/Pasep e Cofins nao foi itemizada e as semanas de 2023 a 2025 nao tem ponto de conferencia independente."
@@ -48,7 +53,7 @@
       "produto": "diesel",
       "de": "2026-03-02",
       "ate": "2026-12-31",
-      "total": 0.0,
+      "total": 0,
       "fonte": "Desoneracao do diesel: MP 1.340/2026 e Decreto 12.878/2026, citados na nota (9) da ANP",
       "conferido": "semanas de 02/03, 09/03 e 16/03/2026: tributo implicito entre -0,0038 e 0,0029",
       "_obs": "A ANP cita 12 e 13/03/2026 como datas dos atos, mas o dado de produtor ja aparece sem tributo na semana iniciada em 02/03/2026; a vigencia aqui segue o dado observado."
@@ -57,9 +62,29 @@
       "produto": "glp",
       "de": "2023-09-04",
       "ate": null,
-      "total": 0.0,
+      "total": 0,
       "fonte": "A composicao de precos do GLP publicada pela ANP nao traz parcela federal",
       "conferido": "4 semanas de 2026: tributo implicito entre -0,0002 e 0,0004"
+    },
+    {
+      "produto": "qav",
+      "de": "2023-09-04",
+      "ate": "2026-04-05",
+      "pis": 0.01269,
+      "cofins": 0.05851,
+      "cide": 0,
+      "fonte": "Decreto 5.059/2004, art. 2o, IV (red. Decreto 10.638/2021): PIS R$ 12,69/m3 e Cofins R$ 58,51/m3; CIDE zerada pelo Decreto 5.060/2004, par. unico, I",
+      "_obs": "Aliquotas por metro cubico convertidas para litro: 12,69/1000 + 58,51/1000 = R$ 0,0712/l. Em vigor sem alteracao desde 2004; o Decreto 10.638/2021 apenas reproduziu os mesmos valores. A faixa termina em 05/04/2026 porque a desoneracao entrou em vigor em 08/04, uma quarta-feira: a semana iniciada em 06/04 e mista e fica de fora da serie, em vez de receber um dos dois regimes por inteiro.",
+      "_conferencia": "Sem ponto de conferencia na Sintese Semanal, que nao cobre QAV. A checagem possivel e a transicao de 08/04/2026: com a deducao correta, o preco de realizacao nao pode dar salto quando a aliquota vai a zero."
+    },
+    {
+      "produto": "qav",
+      "de": "2026-04-13",
+      "ate": "2026-07-31",
+      "total": 0,
+      "fonte": "Decreto 12.924/2026, que fixou em 0,99987 o coeficiente de reducao do QAV (Decreto 5.059/2004, art. 1o, par. 2o), prorrogado ate 31/07/2026 pelo Decreto 12.991/2026",
+      "_obs": "Coeficiente 0,99987 e o mesmo usado na desoneracao do diesel, que a ANP publica como R$ 0,0000/l. O residuo teorico e da ordem de 10^-5 R$/l. A faixa comeca em 13/04/2026, a primeira segunda-feira inteiramente sob o novo regime; a semana de 06/04 a 10/04 e mista e nao entra na serie.",
+      "_atencao": "A desoneracao tem prazo. Sem prorrogacao, a partir de 01/08/2026 volta a valer R$ 0,0712/l -- e ate que este arquivo seja atualizado as semanas ficarao SEM defasagem publicada, o que e o comportamento desejado (nao publicar e melhor que publicar errado)."
     }
   ]
 }

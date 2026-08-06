@@ -18,8 +18,13 @@ validacao_sintese em docs/data/_debug_ppidp.json). Semanas anteriores ao
 inicio da serie de aliquotas ficam sem defasagem, em vez de receberem um
 numero calculado sobre base desconhecida.
 
-QAV fica de fora: seus tributos federais nao sao ad rem, entao nao ha valor
-por litro a deduzir.
+O QAV entra na serie: ao contrario do que este arquivo afirmava, seus tributos
+federais TAMBEM sao ad rem -- o Decreto 5.059/2004, art. 2o, IV, fixa PIS/Pasep
+em R$ 12,69/m3 e Cofins em R$ 58,51/m3 (R$ 0,0712/l somados), e o Decreto
+5.060/2004 zera a Cide do querosene de aviacao. A diferenca em relacao aos
+outros produtos e que a Sintese Semanal nao cobre QAV, entao nao ha valor de
+realizacao publicado pela ANP para conferir a deducao; a checagem possivel e a
+transicao de abril/2026, quando a aliquota foi a zero.
 
 Saidas em docs/data/:
   defasagem.json     series pareadas PPI x realizacao + defasagem
@@ -63,6 +68,7 @@ COL_PRODUTO, COL_INI, COL_FIM, COL_BRASIL = 0, 1, 2, 8
 MATCH = {
     "gasolina": (r"^gasolina a comum", 1.0),
     "diesel": (r"^oleo diesel s-?10", 1.0),
+    "qav": (r"^querosene de aviacao", 1.0),
     "glp": (r"^gas liquefeito de petroleo", 13.0),
 }
 

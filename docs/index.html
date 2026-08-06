@@ -367,7 +367,7 @@ function renderDefasagem(){
     clear('c-def'); clear('c-gapt');
     na.hidden = false;
     na.textContent = state.p === 'qav'
-      ? 'A defasagem não é publicada para o QAV: seus tributos federais não são ad rem, então não há valor por litro a deduzir do preço de produtor para igualar a base do PPI.'
+      ? 'Sem série de defasagem do QAV nesta execução. A alíquota federal do querosene de aviação está zerada até 31/07/2026 (Decreto 12.991/2026); passada essa data, sem prorrogação registrada em scripts/tributos.json, as semanas ficam sem defasagem em vez de receberem um tributo presumido.'
       : 'Sem série de preço de realização para este produto.';
     $('#def-hint').textContent = 'Indisponível para este produto.';
     return;
@@ -526,7 +526,11 @@ function renderMetodologia(){
     `importadores da ANP (coluna Brasil), que inclui PIS/Pasep, Cofins e Cide — esses tributos são deduzidos ` +
     `com as alíquotas <i>ad rem</i> versionadas em <code>scripts/tributos.json</code>.<br><br>` +
     `<b>Conferência.</b> A cada execução o resultado é comparado com os valores de realização e de PPI que a ` +
-    `própria ANP publica na Síntese Semanal de Preços. Na última conferência o erro máximo foi de 0,12%.<br><br>` +
+    `própria ANP publica na Síntese Semanal de Preços. Na última conferência o erro máximo foi de 0,12%. ` +
+    `<b>O QAV é a exceção:</b> a Síntese não cobre esse produto, então não há realização publicada para conferir. ` +
+    `A dedução vem direto do Decreto 5.059/2004 (art. 2º, IV — PIS R$ 12,69/m³ e Cofins R$ 58,51/m³, ou R$ 0,0712/l) ` +
+    `com a Cide zerada pelo Decreto 5.060/2004, e está zerada de 13/04/2026 a 31/07/2026 pelos Decretos 12.924 e 12.991/2026. ` +
+    `A semana de 06/04/2026 fica de fora por ser mista: a desoneração começou numa quarta-feira.<br><br>` +
     `<b>Limites.</b> A série começa em ${dfmt(DEF.inicio_serie)}, quando passa a valer o regime de alíquotas ` +
     `conferido; semanas anteriores ficam de fora em vez de receberem um número calculado sobre base incerta. ` +
     `O preço de realização é a média ponderada de todos os produtores e importadores do país, não apenas da Petrobras.`;

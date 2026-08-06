@@ -62,8 +62,12 @@ Se o **tributo implícito** divergir do **aplicado**, a alíquota mudou — corr
 - A série de defasagem começa em **04/09/2023**, quando passa a valer o regime de alíquotas
   conferido. Semanas anteriores ficam de fora em vez de receberem um número calculado sobre
   base tributária incerta.
-- **QAV fica de fora**: seus tributos federais não são *ad rem*, então não há valor por litro
-  a deduzir.
+- **QAV não tem conferência externa**: a Síntese Semanal não cobre esse produto, então não há
+  preço de realização publicado pela ANP para comparar. A dedução vem direto do Decreto
+  5.059/2004 (art. 2º, IV — PIS R$ 12,69/m³ e Cofins R$ 58,51/m³, ou R$ 0,0712/l), com a Cide
+  zerada pelo Decreto 5.060/2004. A alíquota está em **zero de 13/04/2026 a 31/07/2026**
+  (Decretos 12.924 e 12.991/2026); depois disso, sem prorrogação registrada em
+  `tributos.json`, as semanas ficam sem defasagem em vez de receberem um tributo presumido.
 - O preço de realização é a média ponderada de **todos os produtores e importadores** do país,
   não apenas da Petrobras.
 - A defasagem **não é margem nem lucro**: ignora custos logísticos, tributos estaduais e a

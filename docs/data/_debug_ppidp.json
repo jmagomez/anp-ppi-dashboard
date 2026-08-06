@@ -46,6 +46,16 @@
    "realizacao": 5.32019,
    "defasagem_pct": -5.1556
   },
+  "qav": {
+   "status": "ok",
+   "produto": "Querosene de Aviação - QAV (R$/litro)",
+   "semanas": 150,
+   "semanas_sem_cobertura": 253,
+   "ultima": "2026-07-24",
+   "ppi": 5.558056,
+   "realizacao": 4.86356,
+   "defasagem_pct": -12.4953
+  },
   "glp": {
    "status": "ok",
    "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)",
