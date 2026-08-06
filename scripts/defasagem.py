@@ -214,33 +214,51 @@ def avisos_cobertura(data: dict, trib: dict, hoje: date) -> list:
     for key, p in data.items():
         cob = p.get("cobertura", {})
         rotulo = p["label"]
-        n = cob.get("sem_faixa", 0)
-        if n:
+
+        # 1. A serie parou: ha dado da ANP mais novo que a ultima semana
+        # publicada, e ele nao entra por falta de aliquota.
+        n_rec = cob.get("sem_faixa_recente", 0)
+        if n_rec:
             avisos.append({
                 "produto": key, "label": rotulo, "nivel": "erro",
-                "texto": (f"{rotulo}: {n} semana(s) com dado da ANP ficaram fora da serie "
-                          f"por nao haver aliquota declarada em tributos.json "
-                          f"({cob['de']} a {cob['ate']}). A defasagem nao e publicada "
-                          f"nessas semanas -- e o comportamento desejado, mas o arquivo "
-                          f"precisa ser atualizado."),
+                "texto": (f"{rotulo}: {n_rec} semana(s) com dado da ANP nao entraram na "
+                          f"serie por falta de aliquota em tributos.json "
+                          f"({cob['recente_de']} a {cob['recente_ate']}). A defasagem "
+                          f"parou em {p['weeks'][-1]['end']} e so volta a andar quando "
+                          f"o arquivo for atualizado."),
             })
+
+        # 2. A vigencia da ultima faixa. Avaliada mesmo quando ja ha buraco --
+        # antes ela ficava suprimida por um buraco historico e o alarme que
+        # importava nunca saia.
         ate = cob.get("vigencia_ate")
-        if ate and not n:
+        if ate:
             faltam = (date.fromisoformat(ate) - hoje).days
-            if faltam < 0:
+            if faltam < 0 and not n_rec:
                 avisos.append({
                     "produto": key, "label": rotulo, "nivel": "erro",
-                    "texto": (f"{rotulo}: a ultima faixa de aliquota venceu em {ate}. "
-                              f"As proximas semanas ficarao sem defasagem ate que "
-                              f"tributos.json seja atualizado."),
+                    "texto": (f"{rotulo}: a aliquota vigente venceu em {ate} e nao ha "
+                              f"prorrogacao em tributos.json. A serie ainda esta "
+                              f"completa porque o dado da ANP nao passou dessa data, "
+                              f"mas a proxima semana publicada ficara de fora."),
                 })
-            elif faltam <= AVISO_VIGENCIA_DIAS:
+            elif 0 <= faltam <= AVISO_VIGENCIA_DIAS:
                 avisos.append({
                     "produto": key, "label": rotulo, "nivel": "aviso",
                     "texto": (f"{rotulo}: a aliquota vigente expira em {ate}, daqui a "
                               f"{faltam} dia(s). Confirme se houve prorrogacao antes "
                               f"que as semanas comecem a sair da serie."),
                 })
+
+        # 3. Buraco no meio da serie: informativo, nao alarme.
+        interior = cob.get("sem_faixa", 0) - n_rec
+        if interior > 0 and cob.get("de"):
+            avisos.append({
+                "produto": key, "label": rotulo, "nivel": "info",
+                "texto": (f"{rotulo}: {interior} semana(s) no meio da serie ficam de fora "
+                          f"por nao haver aliquota unica no periodo ({cob['de']} a "
+                          f"{cob['ate']}) -- exclusao deliberada, nao falta de dado."),
+            })
     return avisos
 
 
@@ -354,10 +372,20 @@ def build(products: dict, raw: dict, trib: dict) -> tuple[dict, dict]:
             checks[key] = {"status": "sem semanas cobertas", "produto": rotulos[pkey]}
             continue
 
-        cobertura = {"sem_faixa": len(sem_faixa)}
-        if sem_faixa:
-            cobertura["de"] = min(sem_faixa)
-            cobertura["ate"] = max(sem_faixa)
+        # Buraco no meio da serie (a semana mista do QAV em abril/2026, por
+        # exemplo) e uma exclusao deliberada e historica: nao adianta alertar
+        # toda semana. O que precisa de alarme e o buraco NO FIM -- quando as
+        # semanas mais recentes nao podem ser publicadas e a serie para de andar.
+        ultima_pub = semana_chave(weeks[-1]["end"])
+        recentes = [c for c in sem_faixa if c > ultima_pub]
+        interior = [c for c in sem_faixa if c <= ultima_pub]
+        cobertura = {"sem_faixa": len(sem_faixa), "sem_faixa_recente": len(recentes)}
+        if interior:
+            cobertura["de"] = min(interior)
+            cobertura["ate"] = max(interior)
+        if recentes:
+            cobertura["recente_de"] = min(recentes)
+            cobertura["recente_ate"] = max(recentes)
         vence = validade_faixa(trib, key)
         if vence:
             cobertura["vigencia_ate"] = vence
