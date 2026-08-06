@@ -51,10 +51,17 @@ PPIDP_PAGE = (
     "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
     "precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel"
 )
+# A ANP renomeou esta pagina: o endereco antigo (.../sintese-semanal-de-precos)
+# passou a responder 404. O link e so referencia no JSON e no dashboard, entao a
+# quebra nao derruba nada -- por isso ficou tempo no ar apontando para lugar
+# nenhum. Agora `checar_links` confere o endereco a cada execucao.
 SINTESE_PAGE = (
     "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
-    "precos/sintese-semanal-de-precos"
+    "precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis"
 )
+# Indice de todas as edicoes, usado como alternativa se a pagina acima mudar
+# de novo. Mais estavel porque nao carrega o nome da publicacao na URL.
+SINTESE_FALLBACK = "https://www.gov.br/anp/pt-br/centrais-de-conteudo/publicacoes/sinteses"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (compatible; anp-ppi-dashboard/1.0)",
@@ -62,6 +69,8 @@ HEADERS = {
 }
 
 BR_TZ = timezone(timedelta(hours=-3))
+# Antecedencia com que a expiracao de uma faixa de aliquota passa a ser avisada.
+AVISO_VIGENCIA_DIAS = 45
 COL_PRODUTO, COL_INI, COL_FIM, COL_BRASIL = 0, 1, 2, 8
 
 # chave do PPI -> (regex do produto na planilha de produtores, fator de unidade)
@@ -164,6 +173,77 @@ def carregar_tributos() -> dict:
     return {"inicio_serie": cfg["inicio_serie"], "faixas": faixas}
 
 
+def checar_links() -> dict:
+    """Confere os enderecos que o dashboard publica como fonte.
+
+    O link da Sintese ficou apontando para uma pagina 404 sem que nada
+    quebrasse, porque ele so e exibido. Uma checagem barata a cada execucao
+    evita que a proxima mudanca de endereco passe despercebida do mesmo jeito.
+    """
+    res = {}
+    for nome, url in (("sintese", SINTESE_PAGE),
+                      ("sintese_fallback", SINTESE_FALLBACK),
+                      ("ppidp", PPIDP_PAGE)):
+        try:
+            r = requests.head(url, headers=HEADERS, timeout=30, allow_redirects=True)
+            if r.status_code >= 400:
+                r = requests.get(url, headers=HEADERS, timeout=30)
+            res[nome] = {"url": url, "status": r.status_code, "ok": r.status_code < 400}
+        except Exception as exc:  # noqa: BLE001
+            res[nome] = {"url": url, "status": None, "ok": False,
+                         "erro": f"{type(exc).__name__}: {str(exc)[:120]}"}
+        if not res[nome]["ok"]:
+            print(f"[ppidp] AVISO: link de {nome} nao responde ({res[nome].get('status')}): {url}")
+    return res
+
+
+def validade_faixa(trib: dict, produto: str):
+    """Data final da ultima faixa do produto, ou None se ela for aberta.
+
+    Uma faixa com prazo (uma desoneracao temporaria, por exemplo) e uma bomba
+    relogio silenciosa: passada a data, deducao() devolve None e as semanas
+    somem do painel sem erro nenhum.
+    """
+    faixas = trib["faixas"].get(produto, [])
+    return faixas[-1].get("ate") if faixas else None
+
+
+def avisos_cobertura(data: dict, trib: dict, hoje: date) -> list:
+    """Alertas sobre aliquotas: as que ja venceram e as que estao para vencer."""
+    avisos = []
+    for key, p in data.items():
+        cob = p.get("cobertura", {})
+        rotulo = p["label"]
+        n = cob.get("sem_faixa", 0)
+        if n:
+            avisos.append({
+                "produto": key, "label": rotulo, "nivel": "erro",
+                "texto": (f"{rotulo}: {n} semana(s) com dado da ANP ficaram fora da serie "
+                          f"por nao haver aliquota declarada em tributos.json "
+                          f"({cob['de']} a {cob['ate']}). A defasagem nao e publicada "
+                          f"nessas semanas -- e o comportamento desejado, mas o arquivo "
+                          f"precisa ser atualizado."),
+            })
+        ate = cob.get("vigencia_ate")
+        if ate and not n:
+            faltam = (date.fromisoformat(ate) - hoje).days
+            if faltam < 0:
+                avisos.append({
+                    "produto": key, "label": rotulo, "nivel": "erro",
+                    "texto": (f"{rotulo}: a ultima faixa de aliquota venceu em {ate}. "
+                              f"As proximas semanas ficarao sem defasagem ate que "
+                              f"tributos.json seja atualizado."),
+                })
+            elif faltam <= AVISO_VIGENCIA_DIAS:
+                avisos.append({
+                    "produto": key, "label": rotulo, "nivel": "aviso",
+                    "texto": (f"{rotulo}: a aliquota vigente expira em {ate}, daqui a "
+                              f"{faltam} dia(s). Confirme se houve prorrogacao antes "
+                              f"que as semanas comecem a sair da serie."),
+                })
+    return avisos
+
+
 def deducao(trib: dict, produto: str, semana_iso: str):
     """Tributo federal ad rem vigente na semana, ou None se fora de cobertura."""
     for f in trib["faixas"].get(produto, []):
@@ -235,7 +315,7 @@ def build(products: dict, raw: dict, trib: dict) -> tuple[dict, dict]:
             continue
 
         real = series[pkey]
-        weeks, sem_cobertura = [], 0
+        weeks, sem_cobertura, sem_faixa = [], 0, []
 
         for w in ppi["weeks"]:
             chave = semana_chave(w["end"])
@@ -250,6 +330,12 @@ def build(products: dict, raw: dict, trib: dict) -> tuple[dict, dict]:
             ded = deducao(trib, key, chave) if chave >= inicio else None
             if ded is None:
                 sem_cobertura += 1
+                # Semana com PPI e com preco de produtor, dentro do periodo da
+                # serie, mas sem aliquota declarada: e o caso que precisa gritar.
+                # Sem isso o produto simplesmente encolhe no grafico e ninguem
+                # percebe que a vigencia de uma faixa venceu.
+                if chave >= inicio:
+                    sem_faixa.append(chave)
                 continue
 
             r = (bruto - ded) * fator
@@ -268,12 +354,21 @@ def build(products: dict, raw: dict, trib: dict) -> tuple[dict, dict]:
             checks[key] = {"status": "sem semanas cobertas", "produto": rotulos[pkey]}
             continue
 
+        cobertura = {"sem_faixa": len(sem_faixa)}
+        if sem_faixa:
+            cobertura["de"] = min(sem_faixa)
+            cobertura["ate"] = max(sem_faixa)
+        vence = validade_faixa(trib, key)
+        if vence:
+            cobertura["vigencia_ate"] = vence
+
         out[key] = {
             "key": key,
             "label": ppi["label"],
             "unit": ppi["unit"],
             "fonte_realizacao": rotulos[pkey],
             "fator": fator,
+            "cobertura": cobertura,
             "weeks": weeks,
         }
         last = weeks[-1]
@@ -282,6 +377,8 @@ def build(products: dict, raw: dict, trib: dict) -> tuple[dict, dict]:
             "produto": rotulos[pkey],
             "semanas": len(weeks),
             "semanas_sem_cobertura": sem_cobertura,
+            "semanas_sem_faixa": len(sem_faixa),
+            "cobertura": cobertura,
             "ultima": last["end"],
             "ppi": last["ppi"],
             "realizacao": last["real"],
@@ -336,6 +433,7 @@ def write_outputs(data: dict, trib: dict, out_dir: Path) -> None:
         "source_file": PPIDP_URL,
         "source_page": PPIDP_PAGE,
         "sintese_page": SINTESE_PAGE,
+        "sintese_fallback": SINTESE_FALLBACK,
         "inicio_serie": trib["inicio_serie"],
         "metodologia": (
             "Defasagem = preco de realizacao menos PPI, ambos sem tributos. "
@@ -346,6 +444,7 @@ def write_outputs(data: dict, trib: dict, out_dir: Path) -> None:
             "abaixo da paridade de importacao."
         ),
         "order": [k for k in MATCH if k in data],
+        "avisos_cobertura": avisos_cobertura(data, trib, datetime.now(BR_TZ).date()),
         "products": data,
     }
     with open(out_dir / "defasagem.json", "w", encoding="utf-8") as fh:
@@ -378,6 +477,11 @@ def run(products: dict, out_dir: Path) -> None:
         debug["inicio_serie"] = trib["inicio_serie"]
         debug["checagens"] = checks
         debug["validacao_sintese"] = validar(data, raw, trib)
+        debug["links"] = checar_links()
+        avisos = avisos_cobertura(data, trib, datetime.now(BR_TZ).date())
+        debug["avisos_cobertura"] = avisos
+        for a in avisos:
+            print(f"[ppidp] {a['nivel'].upper()}: {a['texto']}")
 
         if data:
             write_outputs(data, trib, out_dir)
