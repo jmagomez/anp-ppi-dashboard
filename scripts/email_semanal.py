@@ -3,7 +3,13 @@
 Monta e envia o e-mail semanal do dashboard de PPI.
 
 Conteudo: resumo do PPI por produto, defasagem contra o preco de realizacao,
-destaques e alertas, link para o dashboard e o CSV da defasagem em anexo.
+destaques, achados de qualidade do dado, link para o dashboard e o CSV da
+defasagem em anexo.
+
+As duas fontes da ANP nao andam juntas: o PPI sai poucos dias depois do fim da
+semana e a planilha de produtores sai cerca de dez dias depois. O e-mail nunca
+apresenta os dois numeros como se fossem da mesma semana -- cada bloco diz a
+que semana se refere.
 
 O e-mail e enviado mesmo quando falta dado: as lacunas aparecem sinalizadas
 numa secao propria, em vez de o envio ser cancelado.
@@ -64,8 +70,7 @@ def pfmt(v, casas=2):
 
 
 def dfmt(iso):
-    d = date.fromisoformat(iso)
-    return d.strftime("%d/%m/%Y")
+    return date.fromisoformat(iso).strftime("%d/%m/%Y")
 
 
 def casas(unit):
@@ -81,8 +86,11 @@ def load(name):
     path = DATA / name
     if not path.exists():
         return None
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except json.JSONDecodeError:
+        return None
 
 
 # --------------------------------------------------------------------------- #
@@ -108,98 +116,125 @@ def resumo(ppi, defas):
             "titulo": p["title"],
             "unidade": p["unit"],
             "casas": c,
-            "semana": w["label"],
+            "semana_ppi": w["label"],
+            "fim_ppi": w["end"],
             "ppi": atual,
             "var": var,
+            "semana_def": dw["label"] if dw else None,
+            "fim_def": dw["end"] if dw else None,
+            "ppi_na_semana_def": dw["ppi"] if dw else None,
             "realizacao": dw["real"] if dw else None,
             "defasagem": dw["gap"] if dw else None,
             "defasagem_pct": dw["gap_pct"] if dw else None,
             "defasagem_ant": dprev["gap_pct"] if dprev else None,
-            "semana_defasagem": dw["end"] if dw else None,
         })
     return linhas
 
 
-def alertas(linhas, ppi, defas):
+def alertas(linhas):
     out = []
     for l in linhas:
         nome = l["titulo"]
         if l["defasagem_pct"] is not None:
+            quando = f" (semana de {dfmt(l['fim_def'])})" if l["fim_def"] else ""
             if abs(l["defasagem_pct"]) >= LIM_DEFASAGEM:
                 lado = "abaixo" if l["defasagem_pct"] < 0 else "acima"
                 out.append(
                     f"{nome}: preço interno {nfmt(abs(l['defasagem_pct']), 1)}% {lado} "
-                    f"da paridade de importação."
+                    f"da paridade de importação{quando}."
                 )
             if (l["defasagem_ant"] is not None
                     and l["defasagem_pct"] * l["defasagem_ant"] < 0):
                 out.append(
                     f"{nome}: a defasagem inverteu de sinal — de "
-                    f"{pfmt(l['defasagem_ant'])} para {pfmt(l['defasagem_pct'])}."
+                    f"{pfmt(l['defasagem_ant'])} para {pfmt(l['defasagem_pct'])}{quando}."
                 )
         if l["var"] is not None and abs(l["var"]) >= LIM_VARIACAO:
-            out.append(f"{nome}: PPI variou {pfmt(l['var'])} em uma semana.")
+            out.append(
+                f"{nome}: PPI variou {pfmt(l['var'])} em uma semana "
+                f"(semana de {dfmt(l['fim_ppi'])})."
+            )
     return out
 
 
-def lacunas(ppi, defas):
-    out = []
+def lacunas(ppi, defas, qual):
+    """Avisos: o que faltou, o que atrasou e o que precisa de olho humano."""
+    erros, avisos = [], []
     hoje = datetime.now(BR_TZ).date()
 
     ultima = max(date.fromisoformat(p["weeks"][-1]["end"])
                  for p in ppi["products"].values())
     atraso = (hoje - ultima).days
     if atraso > LIM_ATRASO_DIAS:
-        out.append(
+        avisos.append(
             f"O PPI mais recente é da semana encerrada em {dfmt(ultima.isoformat())}, "
             f"há {atraso} dias. A ANP pode estar com a publicação atrasada."
         )
 
     if not defas:
-        out.append(
+        erros.append(
             "A série de defasagem não foi gerada nesta execução: o arquivo de "
             "preços de produtores da ANP não pôde ser lido. O resumo do PPI "
             "abaixo segue válido."
         )
-        return out
+    else:
+        faltando = [ppi["products"][k]["title"] for k in ppi["order"]
+                    if k not in defas.get("products", {})]
+        if faltando:
+            avisos.append("Sem defasagem calculada para: " + ", ".join(faltando) + ".")
 
-    for key, d in defas.get("products", {}).items():
-        fim = date.fromisoformat(d["weeks"][-1]["end"])
-        if (ultima - fim).days >= 7:
-            out.append(
-                f"{d['label']}: o preço de realização mais recente é de "
-                f"{dfmt(fim.isoformat())}, {(ultima - fim).days} dias atrás do PPI. "
-                f"A planilha de produtores da ANP costuma sair com defasagem de "
-                f"cerca de 12 dias."
-            )
+        # Aliquota vencida ou perto de vencer. Sem este aviso o produto encolhe
+        # no grafico sem que nada sinalize -- foi o que aconteceria com o QAV
+        # depois de 31/07/2026. Nivel "info" fica so no dashboard: e o buraco
+        # historico deliberado, que repetido toda semana no e-mail vira ruido.
+        for a in defas.get("avisos_cobertura", []):
+            (erros if a.get("nivel") == "erro" else avisos).append(a["texto"])
 
-    faltando = [ppi["products"][k]["title"] for k in ppi["order"]
-                if k not in defas.get("products", {})]
-    if faltando:
-        out.append("Sem defasagem calculada para: " + ", ".join(faltando) + ".")
+    # Achados do modulo de qualidade sobre o dado de entrada.
+    for a in (qual or {}).get("achados", []):
+        if a.get("nivel") == "erro":
+            erros.append(a["texto"])
+        elif a.get("nivel") == "aviso":
+            avisos.append(a["texto"])
 
-    # Aliquotas: faixa vencida (semanas ja saindo da serie) ou perto de vencer.
-    # Sem este aviso, o produto encolhe no grafico sem que nada sinalize -- foi
-    # exatamente o que aconteceria com o QAV depois de 31/07/2026.
-    # Nivel "info" fica so no dashboard: e o buraco historico e deliberado,
-    # que repetido toda semana no e-mail vira ruido.
-    for a in defas.get("avisos_cobertura", []):
-        if a.get("nivel") in ("erro", "aviso"):
-            out.append(a["texto"])
-    return out
+    return erros, avisos
+
+
+def cabecalho(linhas, defas):
+    """Duas datas, nunca uma so: as fontes nao andam no mesmo passo."""
+    sem_ppi = linhas[0]["semana_ppi"]
+    fins = [l["fim_def"] for l in linhas if l["fim_def"]]
+    if not fins:
+        return sem_ppi, None
+    fim_def = max(fins)
+    sem_def = next(l["semana_def"] for l in linhas if l["fim_def"] == fim_def)
+    dias = (date.fromisoformat(linhas[0]["fim_ppi"]) - date.fromisoformat(fim_def)).days
+    if dias <= 0:
+        return sem_ppi, f"{sem_def} — mesma semana do PPI"
+    return sem_ppi, (
+        f"{sem_def} — {dias} dias atrás do PPI, porque a planilha de produtores "
+        f"da ANP sai depois"
+    )
 
 
 # --------------------------------------------------------------------------- #
 # render
 # --------------------------------------------------------------------------- #
-def render_texto(linhas, alerts, gaps, ppi):
+def render_texto(linhas, alerts, erros, avisos, sem_ppi, sem_def):
     L = []
     L.append("PPI ANP — resumo semanal")
-    L.append(f"Semana de referência: {linhas[0]['semana']}")
+    L.append(f"PPI: semana de {sem_ppi}")
+    if sem_def:
+        L.append(f"Realização e defasagem: semana de {sem_def}")
     L.append("")
-    if gaps:
-        L.append("LACUNAS NESTA EDIÇÃO")
-        for g in gaps:
+    if erros:
+        L.append("PRECISA DE REVISÃO")
+        for e in erros:
+            L.append(f"  - {e}")
+        L.append("")
+    if avisos:
+        L.append("AVISOS E LACUNAS")
+        for g in avisos:
             L.append(f"  - {g}")
         L.append("")
     if alerts:
@@ -211,78 +246,90 @@ def render_texto(linhas, alerts, gaps, ppi):
     for l in linhas:
         c = l["casas"]
         L.append(f"  {l['titulo']} ({l['unidade']})")
-        L.append(f"    PPI médio ......... {nfmt(l['ppi'], c)}   ({pfmt(l['var'])} na semana)")
+        L.append(f"    PPI médio ......... {nfmt(l['ppi'], c)}   ({pfmt(l['var'])} na semana)"
+                 f"   [semana de {dfmt(l['fim_ppi'])}]")
         if l["defasagem_pct"] is not None:
+            L.append(f"    PPI na semana ..... {nfmt(l['ppi_na_semana_def'], c)}"
+                     f"                    [semana de {dfmt(l['fim_def'])}]")
             L.append(f"    Realização ........ {nfmt(l['realizacao'], c)}")
-            L.append(f"    Defasagem ......... {nfmt(l['defasagem'], c)}  ({pfmt(l['defasagem_pct'])})")
+            L.append(f"    Defasagem ......... {nfmt(l['defasagem'], c)}  "
+                     f"({pfmt(l['defasagem_pct'])})")
         else:
             L.append("    Defasagem ......... não publicada para este produto")
         L.append("")
     L.append(f"Dashboard: {DASHBOARD}")
     L.append(f"Código e dados: {REPO}")
     L.append("")
-    L.append("Defasagem = preço de realização menos PPI, ambos sem tributos. "
-             "Valor negativo indica preço interno abaixo da paridade de importação.")
+    L.append("Defasagem = preço de realização menos PPI, ambos sem tributos e ambos "
+             "da mesma semana. Valor negativo indica preço interno abaixo da paridade "
+             "de importação.")
     return "\n".join(L)
 
 
-def render_html(linhas, alerts, gaps, ppi, defas):
+def _caixa(titulo, itens, fundo, borda, cor_titulo, cor_texto):
+    li = "".join(f"<li style='margin-bottom:5px;'>{i}</li>" for i in itens)
+    return f"""
+  <div style="background:{fundo};border:1px solid {borda};border-radius:10px;padding:13px 16px;margin-bottom:18px;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:{cor_titulo};margin-bottom:7px;">{titulo}</div>
+    <ul style="margin:0;padding-left:17px;font-size:13px;color:{cor_texto};line-height:1.6;">{li}</ul>
+  </div>"""
+
+
+def render_html(linhas, alerts, erros, avisos, sem_ppi, sem_def):
     UP, DOWN, MUT = "#C0392B", "#1E8E63", "#5A6B80"
 
     def cor(v):
         return UP if (v or 0) > 0 else DOWN
 
-    partes = []
-    partes.append(f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F4F6F9;">
+    sub = f"""<br><span style="color:{MUT};">Realização e defasagem: <b style="color:#0F1B2D;">{sem_def}</b></span>""" if sem_def else ""
+
+    partes = [f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F4F6F9;">
 <div style="max-width:640px;margin:0 auto;padding:24px 18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F1B2D;">
-  <h1 style="margin:0 0 4px;font-size:20px;font-weight:650;letter-spacing:-.02em;">PPI ANP — resumo semanal</h1>
-  <p style="margin:0 0 20px;color:{MUT};font-size:13px;">Semana de referência: <b style="color:#0F1B2D;">{linhas[0]['semana']}</b></p>""")
+  <h1 style="margin:0 0 6px;font-size:20px;font-weight:650;letter-spacing:-.02em;">PPI ANP — resumo semanal</h1>
+  <p style="margin:0 0 20px;color:{MUT};font-size:13px;line-height:1.6;">PPI: <b style="color:#0F1B2D;">{sem_ppi}</b>{sub}</p>"""]
 
-    if gaps:
-        itens = "".join(f"<li style='margin-bottom:5px;'>{g}</li>" for g in gaps)
-        partes.append(f"""
-  <div style="background:#FFF7E6;border:1px solid #F0D9A8;border-radius:10px;padding:13px 16px;margin-bottom:18px;">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8A6410;margin-bottom:7px;">Lacunas nesta edição</div>
-    <ul style="margin:0;padding-left:17px;font-size:13px;color:#5C4409;line-height:1.6;">{itens}</ul>
-  </div>""")
-
+    if erros:
+        partes.append(_caixa("Precisa de revisão", erros,
+                             "#FDECEA", "#F3C0BA", "#8E2A20", "#6B241C"))
+    if avisos:
+        partes.append(_caixa("Avisos e lacunas", avisos,
+                             "#FFF7E6", "#F0D9A8", "#8A6410", "#5C4409"))
     if alerts:
-        itens = "".join(f"<li style='margin-bottom:5px;'>{a}</li>" for a in alerts)
-        partes.append(f"""
-  <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:13px 16px;margin-bottom:18px;">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:{MUT};margin-bottom:7px;">Destaques</div>
-    <ul style="margin:0;padding-left:17px;font-size:13px;line-height:1.6;">{itens}</ul>
-  </div>""")
+        partes.append(_caixa("Destaques", alerts,
+                             "#FFFFFF", "#E2E8F0", MUT, "#0F1B2D"))
 
     for l in linhas:
         c = l["casas"]
-        if l["defasagem_pct"] is not None:
-            bloco = f"""
-      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:13px;">
+        linha_ppi = f"""
         <tr>
-          <td style="padding:5px 0;color:{MUT};">PPI médio</td>
+          <td style="padding:5px 0;color:{MUT};">PPI médio<span style="font-size:11px;"> · {dfmt(l['fim_ppi'])}</span></td>
           <td style="padding:5px 0;text-align:right;font-weight:600;">{nfmt(l['ppi'], c)}</td>
           <td style="padding:5px 0 5px 12px;text-align:right;color:{cor(l['var'])};">{pfmt(l['var'])}</td>
-        </tr>
+        </tr>"""
+
+        if l["defasagem_pct"] is not None:
+            bloco = f"""
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:13px;">{linha_ppi}
+        <tr><td colspan="3" style="padding:9px 0 3px;border-top:1px solid #E2E8F0;font-size:11px;color:{MUT};text-transform:uppercase;letter-spacing:.05em;">Semana de {dfmt(l['fim_def'])}</td></tr>
         <tr>
-          <td style="padding:5px 0;color:{MUT};">Preço de realização</td>
-          <td style="padding:5px 0;text-align:right;font-weight:600;">{nfmt(l['realizacao'], c)}</td>
+          <td style="padding:4px 0;color:{MUT};">PPI</td>
+          <td style="padding:4px 0;text-align:right;">{nfmt(l['ppi_na_semana_def'], c)}</td>
           <td></td>
         </tr>
         <tr>
-          <td style="padding:9px 0 0;border-top:1px solid #E2E8F0;font-weight:650;">Defasagem</td>
-          <td style="padding:9px 0 0;border-top:1px solid #E2E8F0;text-align:right;font-weight:650;color:{cor(l['defasagem_pct'])};">{nfmt(l['defasagem'], c)}</td>
-          <td style="padding:9px 0 0 12px;border-top:1px solid #E2E8F0;text-align:right;font-weight:650;color:{cor(l['defasagem_pct'])};">{pfmt(l['defasagem_pct'])}</td>
+          <td style="padding:4px 0;color:{MUT};">Preço de realização</td>
+          <td style="padding:4px 0;text-align:right;">{nfmt(l['realizacao'], c)}</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td style="padding:7px 0 0;font-weight:650;">Defasagem</td>
+          <td style="padding:7px 0 0;text-align:right;font-weight:650;color:{cor(l['defasagem_pct'])};">{nfmt(l['defasagem'], c)}</td>
+          <td style="padding:7px 0 0 12px;text-align:right;font-weight:650;color:{cor(l['defasagem_pct'])};">{pfmt(l['defasagem_pct'])}</td>
         </tr>
       </table>"""
         else:
             bloco = f"""
-      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:13px;">
-        <tr>
-          <td style="padding:5px 0;color:{MUT};">PPI médio</td>
-          <td style="padding:5px 0;text-align:right;font-weight:600;">{nfmt(l['ppi'], c)}</td>
-          <td style="padding:5px 0 5px 12px;text-align:right;color:{cor(l['var'])};">{pfmt(l['var'])}</td>
-        </tr>
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:13px;">{linha_ppi}
       </table>
       <p style="margin:9px 0 0;font-size:12px;color:{MUT};">Defasagem não publicada para este produto.</p>"""
 
@@ -299,10 +346,13 @@ def render_html(linhas, alerts, gaps, ppi, defas):
     <a href="{DASHBOARD}" style="display:inline-block;background:#0F1B2D;color:#FFFFFF;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:13px;font-weight:600;">Abrir o dashboard</a>
   </div>
   <p style="font-size:11.5px;color:{MUT};line-height:1.65;margin:0;border-top:1px solid #E2E8F0;padding-top:14px;">
-    Defasagem = preço de realização menos PPI, ambos sem tributos. Valor negativo indica preço
-    interno abaixo da paridade de importação. Não é margem nem lucro: ignora custos logísticos,
-    tributos estaduais e a estrutura comercial de cada agente.<br><br>
-    Fonte: ANP. O CSV da semana vai em anexo.
+    Defasagem = preço de realização menos PPI, ambos sem tributos e ambos da mesma semana.
+    Valor negativo indica preço interno abaixo da paridade de importação. Não é margem nem
+    lucro: ignora custos logísticos, tributos estaduais e a estrutura comercial de cada agente.<br><br>
+    As duas séries vêm da ANP em ritmos diferentes: o PPI sai poucos dias depois do fim da
+    semana e a planilha de produtores, cerca de dez dias depois. Por isso o bloco de defasagem
+    é sempre de uma semana anterior à do PPI.<br><br>
+    O CSV da semana vai em anexo.
     <a href="{REPO}" style="color:{MUT};">Código e dados no GitHub</a>.
   </p>
 </div></body></html>""")
@@ -357,22 +407,26 @@ def main() -> int:
         print("[email] ppi.json ausente; nada a enviar.")
         return 0
     defas = load("defasagem.json")
+    qual = load("qualidade.json")
 
     linhas = resumo(ppi, defas)
-    alerts = alertas(linhas, ppi, defas)
-    gaps = lacunas(ppi, defas)
+    alerts = alertas(linhas)
+    erros, avisos = lacunas(ppi, defas, qual)
+    sem_ppi, sem_def = cabecalho(linhas, defas)
 
     principal = next((l for l in linhas if l["defasagem_pct"] is not None), linhas[0])
     if principal["defasagem_pct"] is not None:
         assunto = (f"PPI ANP · {principal['titulo']} {pfmt(principal['defasagem_pct'])} "
-                   f"vs. paridade · {dfmt(ppi['latest_week_end'])}")
+                   f"vs. paridade · PPI ate {dfmt(ppi['latest_week_end'])}")
     else:
         assunto = f"PPI ANP · resumo da semana de {dfmt(ppi['latest_week_end'])}"
-    if gaps:
-        assunto += " (com lacunas)"
+    if erros:
+        assunto += " (revisar)"
+    elif avisos:
+        assunto += " (com avisos)"
 
-    texto = render_texto(linhas, alerts, gaps, ppi)
-    html = render_html(linhas, alerts, gaps, ppi, defas)
+    texto = render_texto(linhas, alerts, erros, avisos, sem_ppi, sem_def)
+    html = render_html(linhas, alerts, erros, avisos, sem_ppi, sem_def)
 
     (DATA.parent / "_email_previa.html").write_text(html, encoding="utf-8")
     print(texto)
