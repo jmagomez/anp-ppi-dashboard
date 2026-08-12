@@ -11,9 +11,9 @@ docs/data/qualidade.json e consumidos pelo dashboard e pelo e-mail semanal.
 
 Niveis:
   erro   quebra de integridade -- serie que encolhe, valor impossivel,
-         degrau artificial na virada de aliquota
+         degrau com assinatura de aliquota errada
   aviso  algo fora do esperado que pode ser real -- variacao extrema,
-         terminal que some, cobertura baixa
+         terminal que some, cobertura baixa, aliquota presumida
   info   comportamento normal que vale registrar -- ANP nao publicou
          semana nova, buraco conhecido na serie
 """
@@ -33,7 +33,8 @@ VAR_ERRO = 60.0         # % que so pode ser erro de publicacao
 DESVIO_TERMINAL = 15.0  # % de desvio de um terminal contra a media da semana
 COBERTURA_MIN = 0.80    # fracao minima de terminais com dado na ultima semana
 JANELA_DEGRAU = 6       # semanas de cada lado na deteccao de degrau
-DEGRAU_FRACAO = 0.5     # fracao da mudanca de aliquota que acusa degrau
+RESIDUO_ACUSA = 0.5     # |salto + d_taxa| / |d_taxa| abaixo disso acusa erro
+RESIDUO_INCONCLUSIVO = 2.0  # acima disso o mercado se moveu demais para concluir
 
 
 def _mean(vals):
@@ -53,8 +54,7 @@ def _pct(v):
 
 
 def _dbr(iso):
-    d = date.fromisoformat(iso)
-    return d.strftime("%d/%m/%Y")
+    return date.fromisoformat(iso).strftime("%d/%m/%Y")
 
 
 class Achados:
@@ -67,9 +67,14 @@ class Achados:
             "produto": produto, "label": label, "texto": texto,
         })
 
-    erro = lambda self, *a: self.add("erro", *a)      # noqa: E731
-    aviso = lambda self, *a: self.add("aviso", *a)    # noqa: E731
-    info = lambda self, *a: self.add("info", *a)      # noqa: E731
+    def erro(self, *a):
+        self.add("erro", *a)
+
+    def aviso(self, *a):
+        self.add("aviso", *a)
+
+    def info(self, *a):
+        self.add("info", *a)
 
 
 # --------------------------------------------------------------------------- #
@@ -77,6 +82,7 @@ class Achados:
 # --------------------------------------------------------------------------- #
 def checar_ppi(products: dict, anterior: dict | None, ach: Achados) -> None:
     ant_prod = (anterior or {}).get("products", {})
+    parados = []
 
     for key, p in products.items():
         label = p.get("label") or p.get("title") or key
@@ -105,10 +111,7 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados) -> None:
                     f"{_dbr(weeks[-1]['end'])}."
                 )
             elif fim_ant and weeks[-1]["end"] == fim_ant:
-                ach.info(
-                    "sem_semana_nova", key, label,
-                    f"{label}: a ANP nao publicou semana nova desde {_dbr(fim_ant)}."
-                )
+                parados.append((label, fim_ant))
             n_loc_ant = len(ant.get("locations", []))
             if n_loc_ant and len(locs) < n_loc_ant:
                 sumidos = sorted(set(ant.get("locations", [])) - set(locs))
@@ -124,23 +127,24 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados) -> None:
         if dup:
             ach.erro(
                 "semana_duplicada", key, label,
-                f"{label}: semana(s) repetida(s) na serie: {', '.join(_dbr(d) for d in dup[:5])}."
+                f"{label}: semana(s) repetida(s) na serie: "
+                f"{', '.join(_dbr(d) for d in dup[:5])}."
             )
 
-        buracos = []
+        limite = date.today() - timedelta(days=365)
+        recentes = []
         for a, b in zip(weeks, weeks[1:]):
-            delta = (date.fromisoformat(b["end"]) - date.fromisoformat(a["end"])).days
-            if delta > 7:
-                buracos.append((a["end"], b["end"], delta // 7))
-        if buracos:
-            recentes = [x for x in buracos
-                        if date.fromisoformat(x[1]) >= date.today() - timedelta(days=365)]
-            alvo = recentes or buracos
-            ach.info(
+            fim = date.fromisoformat(b["end"])
+            delta = (fim - date.fromisoformat(a["end"])).days
+            if delta > 7 and fim >= limite:
+                recentes.append((a["end"], b["end"], delta // 7))
+        if recentes:
+            ult = recentes[-1]
+            ach.aviso(
                 "buraco_calendario", key, label,
-                f"{label}: {len(buracos)} intervalo(s) sem publicacao na serie; o mais "
-                f"recente entre {_dbr(alvo[-1][0])} e {_dbr(alvo[-1][1])} "
-                f"({alvo[-1][2]} semana(s) sem dado)."
+                f"{label}: {len(recentes)} intervalo(s) sem publicacao no ultimo ano; "
+                f"o mais recente entre {_dbr(ult[0])} e {_dbr(ult[1])} "
+                f"({ult[2]} semana(s) sem dado)."
             )
 
         negativos = sum(1 for w in weeks for v in w["v"] if v is not None and v <= 0)
@@ -192,16 +196,34 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados) -> None:
                         f"({_fmt(ant_med)} para {_fmt(med)})."
                     )
 
+    if parados:
+        quando = _dbr(parados[0][1])
+        quais = "todos os produtos" if len(parados) == len(products) \
+            else ", ".join(l for l, _ in parados)
+        ach.info(
+            "sem_semana_nova", None, None,
+            f"A ANP nao publicou semana nova desde {quando} ({quais}). "
+            f"O painel segue mostrando a ultima semana disponivel."
+        )
+
 
 # --------------------------------------------------------------------------- #
 # degrau artificial na virada de aliquota
 # --------------------------------------------------------------------------- #
 def checar_degraus(out_dir: Path, ach: Achados) -> list:
-    """Um degrau na defasagem exatamente na virada de faixa acusa aliquota errada.
+    """Procura a assinatura de aliquota errada na virada de faixa.
 
-    Se a deducao esta correta, o preco de realizacao e continuo: a serie nao pode
-    dar um salto do tamanho da mudanca de aliquota so porque a lei mudou. Esta e
-    a unica conferencia disponivel para o QAV, que a Sintese Semanal nao cobre.
+    Se aplicamos a aliquota nova quando a antiga ainda valia, o preco de
+    realizacao reconstruido erra por exatamente a diferenca entre as duas, e a
+    defasagem da um salto de -d_taxa na data do corte. O teste mede o quanto o
+    salto observado se parece com esse valor:
+
+        residuo = |salto + d_taxa|      razao = residuo / |d_taxa|
+
+    Perto de zero, a assinatura bate e a aliquota provavelmente esta errada.
+    Muito acima de 1, o mercado se moveu tanto no periodo que o teste nao
+    consegue concluir nada -- e isso e dito, em vez de virar um falso positivo.
+    E a unica conferencia disponivel para o QAV, que a Sintese nao cobre.
     """
     degraus = []
     try:
@@ -209,7 +231,7 @@ def checar_degraus(out_dir: Path, ach: Achados) -> list:
             defas = json.load(fh)
         with open(Path(__file__).resolve().parent / "tributos.json", encoding="utf-8") as fh:
             cfg = json.load(fh)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         return degraus
 
     def total(f):
@@ -226,8 +248,7 @@ def checar_degraus(out_dir: Path, ach: Achados) -> list:
         p = (defas.get("products") or {}).get(key)
         if not p or len(faixas) < 2:
             continue
-        weeks = p["weeks"]
-        label = p.get("label", key)
+        weeks, label = p["weeks"], p.get("label", key)
 
         for anterior, atual in zip(faixas, faixas[1:]):
             corte = atual["de"]
@@ -238,40 +259,57 @@ def checar_degraus(out_dir: Path, ach: Achados) -> list:
             antes = [w["gap"] for w in weeks if w["end"] < corte][-JANELA_DEGRAU:]
             depois = [w["gap"] for w in weeks if w["end"] >= corte][:JANELA_DEGRAU]
             if len(antes) < 2 or len(depois) < 2:
+                if atual.get("presumido"):
+                    ach.aviso(
+                        "aliquota_presumida", key, label,
+                        f"{label}: a aliquota vigente desde {_dbr(corte)} e presumida e "
+                        f"ainda nao ha semanas suficientes depois do corte para o teste "
+                        f"de continuidade rodar. Confirmar em fonte oficial."
+                    )
                 continue
 
             salto = median(depois) - median(antes)
+            residuo = abs(salto + d_taxa)
+            razao = residuo / abs(d_taxa)
             reg = {
                 "produto": key, "label": label, "corte": corte,
                 "taxa_antes": total(anterior), "taxa_depois": total(atual),
                 "mudanca_taxa": round(d_taxa, 6),
                 "salto_defasagem": round(salto, 6),
+                "residuo": round(residuo, 6),
+                "razao_residuo": round(razao, 3),
                 "semanas_antes": len(antes), "semanas_depois": len(depois),
                 "presumida": bool(atual.get("presumido")),
             }
             degraus.append(reg)
 
-            # Um erro de aliquota aparece como salto de sinal oposto ao da mudanca.
-            suspeito = (abs(salto) >= DEGRAU_FRACAO * abs(d_taxa)
-                        and salto * d_taxa < 0)
-            if suspeito:
+            if razao <= RESIDUO_ACUSA:
                 ach.erro(
                     "degrau_aliquota", key, label,
-                    f"{label}: a defasagem deu um salto de {_fmt(salto)} R$ na virada de "
-                    f"aliquota de {_dbr(corte)}, contra uma mudanca de aliquota de "
-                    f"{_fmt(d_taxa)} R$. Salto e mudanca tem sinais opostos e ordem de "
-                    f"grandeza parecida, o que e a assinatura de aliquota errada em "
-                    f"scripts/tributos.json."
+                    f"{label}: na virada de aliquota de {_dbr(corte)} a defasagem saltou "
+                    f"{_fmt(salto)} R$, que e quase exatamente o oposto da mudanca de "
+                    f"aliquota ({_fmt(d_taxa)} R$). Essa e a assinatura de aliquota "
+                    f"errada em scripts/tributos.json -- residuo de {_fmt(residuo)} R$, "
+                    f"{razao:.0%} da mudanca."
                 )
             elif atual.get("presumido"):
-                ach.aviso(
-                    "aliquota_presumida", key, label,
-                    f"{label}: a aliquota vigente desde {_dbr(corte)} e presumida, nao "
-                    f"confirmada em fonte oficial. O teste de continuidade nao acusou "
-                    f"degrau (salto de {_fmt(salto)} R$ contra mudanca de "
-                    f"{_fmt(d_taxa)} R$), o que sustenta a presuncao, mas ela segue "
-                    f"pendente de confirmacao."
-                )
+                if razao >= RESIDUO_INCONCLUSIVO:
+                    ach.aviso(
+                        "aliquota_presumida", key, label,
+                        f"{label}: a aliquota vigente desde {_dbr(corte)} e presumida, nao "
+                        f"confirmada em fonte oficial. O teste de continuidade e "
+                        f"inconclusivo: o preco se moveu {razao:.0f} vezes mais que a "
+                        f"mudanca de aliquota no periodo, entao ele nao confirma nem "
+                        f"desmente a presuncao."
+                    )
+                else:
+                    ach.aviso(
+                        "aliquota_presumida", key, label,
+                        f"{label}: a aliquota vigente desde {_dbr(corte)} e presumida, nao "
+                        f"confirmada em fonte oficial. O teste de continuidade nao acusou "
+                        f"a assinatura de erro (residuo de {_fmt(residuo)} R$), o que "
+                        f"sustenta a presuncao sem confirma-la."
+                    )
     return degraus
 
 
@@ -282,7 +320,7 @@ def run(products: dict, anterior: dict | None, out_dir: Path) -> dict:
     degraus = checar_degraus(out_dir, ach)
 
     ordem = {"erro": 0, "aviso": 1, "info": 2}
-    ach.itens.sort(key=lambda x: (ordem[x["nivel"]], x["produto"]))
+    ach.itens.sort(key=lambda x: (ordem[x["nivel"]], x["produto"] or ""))
     resumo = {n: sum(1 for i in ach.itens if i["nivel"] == n)
               for n in ("erro", "aviso", "info")}
 
@@ -293,6 +331,7 @@ def run(products: dict, anterior: dict | None, out_dir: Path) -> dict:
             "variacao_aviso_pct": VAR_AVISO, "variacao_erro_pct": VAR_ERRO,
             "desvio_terminal_pct": DESVIO_TERMINAL,
             "cobertura_minima": COBERTURA_MIN,
+            "residuo_acusa": RESIDUO_ACUSA,
         },
         "resumo": resumo,
         "achados": ach.itens,
