@@ -67,8 +67,7 @@
     "sem_faixa": 1,
     "sem_faixa_recente": 0,
     "de": "2026-04-06",
-    "ate": "2026-04-06",
-    "vigencia_ate": "2026-07-31"
+    "ate": "2026-04-06"
    },
    "ultima": "2026-07-31",
    "ppi": 5.690484,
@@ -243,12 +242,6 @@
   }
  },
  "avisos_cobertura": [
-  {
-   "produto": "qav",
-   "label": "QAV",
-   "nivel": "erro",
-   "texto": "QAV: a aliquota vigente venceu em 2026-07-31 e nao ha prorrogacao em tributos.json. A serie ainda esta completa porque o dado da ANP nao passou dessa data, mas a proxima semana publicada ficara de fora."
-  },
   {
    "produto": "qav",
    "label": "QAV",
