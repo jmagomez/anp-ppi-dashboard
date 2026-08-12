@@ -1,0 +1,106 @@
+{
+ "generated_at": "2026-08-12T20:49:50-03:00",
+ "comparado_com": "2026-08-12T20:44:10-03:00",
+ "limiares": {
+  "variacao_aviso_pct": 20.0,
+  "variacao_erro_pct": 60.0,
+  "desvio_terminal_pct": 15.0,
+  "cobertura_minima": 0.8
+ },
+ "resumo": {
+  "erro": 1,
+  "aviso": 0,
+  "info": 8
+ },
+ "achados": [
+  {
+   "nivel": "erro",
+   "codigo": "degrau_aliquota",
+   "produto": "qav",
+   "label": "QAV",
+   "texto": "QAV: a defasagem deu um salto de 2,7872 R$ na virada de aliquota de 13/04/2026, contra uma mudanca de aliquota de -0,0712 R$. Salto e mudanca tem sinais opostos e ordem de grandeza parecida, o que e a assinatura de aliquota errada em scripts/tributos.json."
+  },
+  {
+   "nivel": "info",
+   "codigo": "sem_semana_nova",
+   "produto": "diesel",
+   "label": "Diesel A S10",
+   "texto": "Diesel A S10: a ANP nao publicou semana nova desde 07/08/2026."
+  },
+  {
+   "nivel": "info",
+   "codigo": "buraco_calendario",
+   "produto": "diesel",
+   "label": "Diesel A S10",
+   "texto": "Diesel A S10: 10 intervalo(s) sem publicacao na serie; o mais recente entre 14/04/2022 e 22/04/2022 (1 semana(s) sem dado)."
+  },
+  {
+   "nivel": "info",
+   "codigo": "sem_semana_nova",
+   "produto": "gasolina",
+   "label": "Gasolina A",
+   "texto": "Gasolina A: a ANP nao publicou semana nova desde 07/08/2026."
+  },
+  {
+   "nivel": "info",
+   "codigo": "buraco_calendario",
+   "produto": "gasolina",
+   "label": "Gasolina A",
+   "texto": "Gasolina A: 8 intervalo(s) sem publicacao na serie; o mais recente entre 14/04/2022 e 22/04/2022 (1 semana(s) sem dado)."
+  },
+  {
+   "nivel": "info",
+   "codigo": "sem_semana_nova",
+   "produto": "glp",
+   "label": "GLP",
+   "texto": "GLP: a ANP nao publicou semana nova desde 07/08/2026."
+  },
+  {
+   "nivel": "info",
+   "codigo": "buraco_calendario",
+   "produto": "glp",
+   "label": "GLP",
+   "texto": "GLP: 10 intervalo(s) sem publicacao na serie; o mais recente entre 14/04/2022 e 22/04/2022 (1 semana(s) sem dado)."
+  },
+  {
+   "nivel": "info",
+   "codigo": "sem_semana_nova",
+   "produto": "qav",
+   "label": "QAV",
+   "texto": "QAV: a ANP nao publicou semana nova desde 07/08/2026."
+  },
+  {
+   "nivel": "info",
+   "codigo": "buraco_calendario",
+   "produto": "qav",
+   "label": "QAV",
+   "texto": "QAV: 10 intervalo(s) sem publicacao na serie; o mais recente entre 14/04/2022 e 22/04/2022 (1 semana(s) sem dado)."
+  }
+ ],
+ "degraus": [
+  {
+   "produto": "diesel",
+   "label": "Diesel A S10",
+   "corte": "2026-03-02",
+   "taxa_antes": 0.355,
+   "taxa_depois": 0.0,
+   "mudanca_taxa": -0.355,
+   "salto_defasagem": -0.859284,
+   "semanas_antes": 6,
+   "semanas_depois": 6,
+   "presumida": false
+  },
+  {
+   "produto": "qav",
+   "label": "QAV",
+   "corte": "2026-04-13",
+   "taxa_antes": 0.0712,
+   "taxa_depois": 0.0,
+   "mudanca_taxa": -0.0712,
+   "salto_defasagem": 2.787222,
+   "semanas_antes": 6,
+   "semanas_depois": 6,
+   "presumida": false
+  }
+ ]
+}
