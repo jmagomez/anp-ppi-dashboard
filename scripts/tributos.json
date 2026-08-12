@@ -15,13 +15,16 @@
     "",
     "Cada faixa aceita 'pis', 'cofins' e 'cide' (somados) ou 'total', quando o",
     "valor foi ajustado empiricamente e a reparticao entre tributos nao e conhecida.",
+    "Faixas com 'presumido': true entram no calculo mas sao sinalizadas como nao",
+    "confirmadas, no log, no e-mail e no dashboard, ate que a conferencia feche.",
     "",
     "Conferencia: a cada execucao o pipeline compara o preco de realizacao",
     "reconstruido com os valores publicados pela ANP na Sintese Semanal. O",
     "resultado fica em docs/data/_debug_ppidp.json, secao validacao_sintese, no",
     "campo 'tributo_implicito'. Se o implicito divergir do aplicado, corrija aqui.",
     "A Sintese nao publica realizacao de QAV, entao esse produto nao tem ponto de",
-    "conferencia externo -- ver o campo _conferencia da faixa.",
+    "conferencia externo -- a checagem e o detector de degrau, que mede o salto da",
+    "defasagem na virada de faixa (secao degraus de _debug_ppidp.json).",
     "",
     "Semanas anteriores a inicio_serie ficam sem defasagem publicada, em vez de",
     "receberem um numero calculado sobre base tributaria desconhecida. O mesmo",
@@ -83,8 +86,19 @@
       "ate": "2026-07-31",
       "total": 0,
       "fonte": "Decreto 12.924/2026, que fixou em 0,99987 o coeficiente de reducao do QAV (Decreto 5.059/2004, art. 1o, par. 2o), prorrogado ate 31/07/2026 pelo Decreto 12.991/2026",
-      "_obs": "Coeficiente 0,99987 e o mesmo usado na desoneracao do diesel, que a ANP publica como R$ 0,0000/l. O residuo teorico e da ordem de 10^-5 R$/l. A faixa comeca em 13/04/2026, a primeira segunda-feira inteiramente sob o novo regime; a semana de 06/04 a 10/04 e mista e nao entra na serie.",
-      "_atencao": "A desoneracao tem prazo. Sem prorrogacao, a partir de 01/08/2026 volta a valer R$ 0,0712/l -- e ate que este arquivo seja atualizado as semanas ficarao SEM defasagem publicada, o que e o comportamento desejado (nao publicar e melhor que publicar errado)."
+      "_obs": "Coeficiente 0,99987 e o mesmo usado na desoneracao do diesel, que a ANP publica como R$ 0,0000/l. O residuo teorico e da ordem de 10^-5 R$/l. A faixa comeca em 13/04/2026, a primeira segunda-feira inteiramente sob o novo regime; a semana de 06/04 a 10/04 e mista e nao entra na serie."
+    },
+    {
+      "produto": "qav",
+      "de": "2026-08-03",
+      "ate": null,
+      "pis": 0.01269,
+      "cofins": 0.05851,
+      "cide": 0,
+      "presumido": true,
+      "fonte": "Reversao ao Decreto 5.059/2004, art. 2o, IV, apos o fim do prazo do Decreto 12.991/2026 em 31/07/2026",
+      "_obs": "A desoneracao venceu em 31/07/2026 (sexta-feira) e nao foi localizada prorrogacao publicada ate 11/08/2026. Sem esta faixa o QAV sairia da serie. A faixa comeca em 03/08/2026, a primeira segunda-feira ja inteiramente fora do beneficio -- a semana de 27/07 a 31/07 fecha o regime anterior sem mistura.",
+      "_atencao": "PRESUMIDA. Se houver prorrogacao, troque para total 0 com a data do decreto. Se a reversao se confirmar, remova 'presumido' e registre a conferencia. O detector de degrau mede o salto da defasagem na virada: um degrau proximo de 0,0712 R$/l indica que a aliquota aqui esta errada, e um degrau proximo de zero indica que esta certa."
     }
   ]
 }
