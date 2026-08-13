@@ -11,14 +11,14 @@
 :root{
   --bg:#0A0E14; --panel:#111823; --panel2:#0D131C; --line:#1D2733;
   --txt:#E9EFF7; --muted:#93A3B8; --dim:#5E7089;
-  --up:#F2685C; --down:#35C48F; --grid:rgba(147,163,184,.12);
+  --up:#F2685C; --down:#35C48F; --warn:#E0A93B; --grid:rgba(147,163,184,.12);
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
   --gasolina:#F2B441; --diesel:#4FA8F5; --qav:#A98BF0; --glp:#35C48F;
   --accent:var(--gasolina);
 }
 [data-theme="light"]{
   --bg:#F6F8FB; --panel:#FFFFFF; --panel2:#FBFCFE; --line:#E2E8F0;
-  --txt:#0F1B2D; --muted:#5A6B80; --dim:#8A9AAE;
+  --txt:#0F1B2D; --muted:#5A6B80; --dim:#8A9AAE; --warn:#B07A10;
   --grid:rgba(15,27,45,.08);
   --shadow:0 1px 2px rgba(15,27,45,.06), 0 8px 24px -14px rgba(15,27,45,.25);
 }
@@ -43,6 +43,7 @@ header.top{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-con
 }
 .badge b{color:var(--txt);font-weight:600}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--down);box-shadow:0 0 0 3px color-mix(in srgb,var(--down) 22%,transparent)}
+.dot.lag{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent)}
 .icon-btn{background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:999px;
   padding:6px 13px;font-size:12px;cursor:pointer;transition:.15s;text-decoration:none;display:inline-block}
 .icon-btn:hover{color:var(--txt);border-color:var(--dim)}
@@ -78,7 +79,8 @@ header.top{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-con
 .kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--accent);opacity:.85}
 .kpi.hl::before{background:var(--txt)}
 .kpi .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:600}
-.kpi .val{font-size:25px;font-weight:640;letter-spacing:-.02em;margin-top:7px;font-variant-numeric:tabular-nums}
+.kpi .wk{font-size:11px;color:var(--dim);margin-top:3px;font-variant-numeric:tabular-nums}
+.kpi .val{font-size:25px;font-weight:640;letter-spacing:-.02em;margin-top:5px;font-variant-numeric:tabular-nums}
 .kpi .sub{font-size:12px;color:var(--muted);margin-top:5px}
 .up{color:var(--up)} .down{color:var(--down)}
 
@@ -97,6 +99,31 @@ header.top{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-con
 .na{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);
   text-align:center;font-size:13px;padding:0 34px;line-height:1.6}
 .dl{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+
+/* ---------- qualidade ---------- */
+.qual{display:flex;flex-direction:column;gap:8px}
+.qi{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.6;
+  padding:9px 12px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+.qi .tag{flex:none;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 7px;border-radius:5px;margin-top:1px}
+.qi.erro .tag{background:color-mix(in srgb,var(--up) 22%,transparent);color:var(--up)}
+.qi.aviso .tag{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--warn)}
+.qi.info .tag{background:color-mix(in srgb,var(--muted) 18%,transparent);color:var(--muted)}
+.qi.erro{border-color:color-mix(in srgb,var(--up) 35%,var(--line))}
+
+/* ---------- tabela ---------- */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.tbl th{text-align:right;font-weight:600;color:var(--dim);font-size:11px;text-transform:uppercase;
+  letter-spacing:.05em;padding:0 10px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th:first-child{text-align:left}
+.tbl td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--grid);white-space:nowrap}
+.tbl td:first-child{text-align:left;font-weight:600}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .sw{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+.tbl .neg{color:var(--down)} .tbl .pos{color:var(--up)}
+.tbl-wrap{overflow-x:auto}
+.tbl caption{caption-side:bottom;text-align:left;color:var(--dim);font-size:11.5px;padding-top:10px;line-height:1.6}
+
 footer{margin-top:36px;color:var(--dim);font-size:12px;line-height:1.7;border-top:1px solid var(--line);padding-top:16px}
 footer a{color:var(--muted);text-decoration:none;border-bottom:1px dotted var(--dim)}
 footer a:hover{color:var(--txt)}
@@ -114,7 +141,8 @@ footer div{margin-bottom:6px}
       <p>Série semanal do PPI por terminal de suprimento e defasagem em relação ao preço de realização — Gasolina A, Diesel A S10, QAV e GLP. Fonte oficial: Agência Nacional do Petróleo, Gás Natural e Biocombustíveis.</p>
     </div>
     <div class="badges">
-      <span class="badge"><span class="dot"></span>Semana de ref.: <b id="b-week">—</b></span>
+      <span class="badge"><span class="dot"></span>PPI: <b id="b-week">—</b></span>
+      <span class="badge" id="b-def-wrap" hidden><span class="dot lag"></span>Realização: <b id="b-def">—</b></span>
       <span class="badge">Atualizado: <b id="b-updated">—</b></span>
       <button class="icon-btn" id="theme-btn" type="button">Tema claro</button>
     </div>
@@ -142,6 +170,12 @@ footer div{margin-bottom:6px}
     <div class="kpis" id="kpis"></div>
 
     <div class="grid">
+      <section class="card c12" id="card-qual" hidden>
+        <h2>Qualidade do dado desta execução</h2>
+        <p class="hint" id="qual-hint">Checagens automáticas sobre o que a ANP publicou.</p>
+        <div class="qual" id="qual"></div>
+      </section>
+
       <section class="card c8">
         <h2>Defasagem: PPI × preço de realização</h2>
         <p class="hint" id="def-hint">Paridade de importação contra o preço praticado por produtores e importadores, ambos sem tributos.</p>
@@ -154,6 +188,20 @@ footer div{margin-bottom:6px}
         <div class="chart-box tall"><canvas id="c-gapt"></canvas></div>
       </section>
 
+      <section class="card c12">
+        <h2>Defasagem comparada entre produtos</h2>
+        <p class="hint">Os quatro produtos na mesma escala. Acima de zero, preço interno acima da paridade.</p>
+        <div class="chart-box"><canvas id="c-defcomp"></canvas></div>
+      </section>
+
+      <section class="card c12">
+        <h2>Foto da semana</h2>
+        <p class="hint" id="tbl-hint">Cada coluna traz a sua própria semana: PPI e realização não são publicados no mesmo ritmo.</p>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl"></table>
+        </div>
+      </section>
+
       <section class="card c8">
         <h2>Série histórica do PPI</h2>
         <p class="hint" id="hist-hint">Preço por terminal e média nacional simples.</p>
@@ -162,7 +210,7 @@ footer div{margin-bottom:6px}
 
       <section class="card c4">
         <h2>Dispersão entre terminais</h2>
-        <p class="hint">Diferença % de cada terminal em relação à média da semana de referência.</p>
+        <p class="hint" id="disp-hint">Diferença % de cada terminal em relação à média da semana.</p>
         <div class="chart-box tall"><canvas id="c-gap"></canvas></div>
       </section>
 
@@ -174,7 +222,7 @@ footer div{margin-bottom:6px}
 
       <section class="card c6">
         <h2>Comparativo entre produtos</h2>
-        <p class="hint">Média nacional de cada produto indexada a 100 no início do período.</p>
+        <p class="hint">PPI médio de cada produto indexado a 100 no início do período.</p>
         <div class="chart-box"><canvas id="c-comp"></canvas></div>
       </section>
 
@@ -187,6 +235,7 @@ footer div{margin-bottom:6px}
           <a class="icon-btn" href="./data/ppi_long.csv" download>CSV do PPI (4 produtos)</a>
           <a class="icon-btn" href="./data/ppi.json">ppi.json</a>
           <a class="icon-btn" href="./data/defasagem.json">defasagem.json</a>
+          <a class="icon-btn" href="./data/qualidade.json">qualidade.json</a>
         </div>
       </section>
     </div>
@@ -196,9 +245,10 @@ footer div{margin-bottom:6px}
 
   <footer>
     <div><b>Fontes:</b> <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-paridade-de-importacao" target="_blank" rel="noopener">ANP — Preços de Paridade de Importação</a> e <a href="https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel" target="_blank" rel="noopener">ANP — Preços de produtores e importadores</a>.</div>
+    <div><b>As duas séries não andam juntas:</b> o PPI sai poucos dias depois do fim da semana e a planilha de produtores, cerca de dez dias depois. Por isso a defasagem é sempre de uma semana anterior à do PPI — cada bloco desta página diz a que semana se refere.</div>
     <div><b>PPI:</b> estimativa da ANP do custo de importação do produto colocado no terminal. A “média” é a média aritmética simples dos terminais com dado publicado na semana, não ponderada por volume — mesmo critério usado pela ANP na Síntese Semanal de Preços.</div>
     <div><b>Defasagem:</b> preço de realização menos PPI. Valor negativo indica preço interno abaixo da paridade de importação. Não é margem nem lucro: ignora custos logísticos, tributos estaduais e a estrutura comercial de cada agente.</div>
-    <div>Atualização automática toda segunda-feira às 20h (BRT) via GitHub Actions. <a href="https://github.com/jmagomez/anp-ppi-dashboard" target="_blank" rel="noopener">Código e dados no GitHub</a>.</div>
+    <div>Coleta automática todo dia às 8h (BRT); o resumo por e-mail sai às segundas às 20h. <a href="https://github.com/jmagomez/anp-ppi-dashboard" target="_blank" rel="noopener">Código e dados no GitHub</a>.</div>
   </footer>
 </div>
 
@@ -206,7 +256,7 @@ footer div{margin-bottom:6px}
 const PALETTE = {gasolina:'#F2B441', diesel:'#4FA8F5', qav:'#A98BF0', glp:'#35C48F'};
 const RANGE_MONTHS = {'3m':3,'6m':6,'1a':12,'3a':36,'5a':60};
 
-let DATA=null, DEF=null;
+let DATA=null, DEF=null, QUAL=null;
 const state = {p:null, range:'1a', sel:new Set()};
 const charts = {};
 
@@ -215,7 +265,8 @@ const $ = s => document.querySelector(s);
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const P = () => DATA.products[state.p];
 const D = () => (DEF && DEF.products) ? DEF.products[state.p] : null;
-const dec = () => /litro/i.test(P().unit) ? 4 : 2;
+const decOf = u => /litro/i.test(u) ? 4 : 2;
+const dec = () => decOf(P().unit);
 
 function nfmt(v, d){
   if(v===null || v===undefined || Number.isNaN(v)) return '—';
@@ -228,6 +279,9 @@ function pfmt(v, d){
   return (v>0?'+':'') + v.toLocaleString('pt-BR',{minimumFractionDigits:n,maximumFractionDigits:n}) + '%';
 }
 function dfmt(iso){ const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
+function dias(a, b){
+  return Math.round((new Date(a+'T12:00:00') - new Date(b+'T12:00:00')) / 86400000);
+}
 function mean(arr){
   const v = arr.filter(x => x!==null && x!==undefined && !Number.isNaN(x));
   return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
@@ -281,7 +335,7 @@ function renderTabs(){
     const gap = d ? d.weeks[d.weeks.length-1].gap_pct : null;
     const b = document.createElement('button');
     b.className = 'tab' + (k===state.p ? ' on' : '');
-    b.innerHTML = `${p.title}<small>${p.unit} · ${nfmt(mean(last.v), /litro/i.test(p.unit)?4:2)}` +
+    b.innerHTML = `${p.title}<small>${p.unit} · ${nfmt(mean(last.v), decOf(p.unit))}` +
                   (gap===null ? '' : ` · defasagem ${pfmt(gap)}`) + `</small>`;
     b.onclick = () => { state.p = k; state.sel = new Set(p.locations); renderAll(); };
     el.appendChild(b);
@@ -297,7 +351,7 @@ function renderChips(){
     b.innerHTML = `<span class="sw" style="background:${state.sel.has(name)?termColor(i,P().locations.length):'var(--dim)'}"></span>${name}`;
     b.onclick = () => {
       state.sel.has(name) ? state.sel.delete(name) : state.sel.add(name);
-      renderChips(); renderKPIs(); renderCharts();
+      renderChips(); renderKPIs(); renderCharts(); renderTabela();
     };
     el.appendChild(b);
   });
@@ -325,37 +379,121 @@ function renderKPIs(){
   const d = D();
   const dw = d ? d.weeks[d.weeks.length-1] : null;
   const dprev = d && d.weeks.length>1 ? d.weeks[d.weeks.length-2] : null;
+  const semPPI = dfmt(last.end), semDef = dw ? dfmt(dw.end) : null;
 
   const cards = [];
   if(dw){
     cards.push({
-      lab:'Defasagem vs. paridade', val:pfmt(dw.gap_pct),
+      lab:'Defasagem vs. paridade', wk:`semana de ${semDef}`, val:pfmt(dw.gap_pct),
       sub:`${nfmt(dw.gap)} ${p.unit} · preço interno ${dw.gap_pct<0?'abaixo':'acima'} do PPI`,
       cls: dw.gap_pct>0 ? 'up' : 'down', hl:true
     });
     cards.push({
-      lab:'Realização vs. PPI', val:nfmt(dw.real),
+      lab:'Realização vs. PPI', wk:`semana de ${semDef}`, val:nfmt(dw.real),
       sub:`PPI ${nfmt(dw.ppi)} ${p.unit}` + (dprev ? ` · semana anterior ${pfmt(dprev.gap_pct)}` : '')
     });
-  } else {
-    cards.push({lab:'PPI médio', val:nfmt(avgNow), sub:`${p.unit} · ${vals.length} terminais com dado`});
   }
-  cards.push({lab:'Variação semanal do PPI', val:pfmt(wow),
+  cards.push({lab:'PPI médio', wk:`semana de ${semPPI}`, val:nfmt(avgNow),
+    sub:`${p.unit} · ${vals.length} de ${p.locations.length} terminais com dado`});
+  cards.push({lab:'Variação semanal do PPI', wk:`semana de ${semPPI}`, val:pfmt(wow),
     sub:prev?`vs. semana encerrada em ${dfmt(prev.end)}`:'—', cls:wow>0?'up':(wow<0?'down':'')});
-  cards.push({lab:'Variação 12 meses', val:pfmt(yoy),
+  cards.push({lab:'Variação 12 meses', wk:`semana de ${semPPI}`, val:pfmt(yoy),
     sub:yoyWeek?`vs. ${dfmt(yoyWeek.end)}`:'—', cls:yoy>0?'up':(yoy<0?'down':'')});
-  cards.push({lab:'Dispersão entre terminais', val:nfmt(spread),
+  cards.push({lab:'Dispersão entre terminais', wk:`semana de ${semPPI}`, val:nfmt(spread),
     sub:(spread!==null&&avgNow)?`${pfmt(spread/avgNow*100).replace('+','')} da média`:'—'});
 
   $('#kpis').innerHTML = cards.map(c => `
     <div class="kpi ${c.hl?'hl':''}">
       <div class="lab">${c.lab}</div>
+      <div class="wk">${c.wk}</div>
       <div class="val ${c.cls||''}">${c.val}</div>
       <div class="sub">${c.sub}</div>
     </div>`).join('');
 
   $('#b-week').textContent = last.label;
   $('#hist-hint').textContent = `${p.title} · ${p.unit} · média nacional simples destacada.`;
+  $('#disp-hint').textContent = `Diferença % de cada terminal em relação à média da semana de ${semPPI}.`;
+}
+
+function renderCabecalho(){
+  // Duas datas, nunca uma so: as fontes da ANP nao sao publicadas no mesmo ritmo.
+  const ppiEnd = DATA.latest_week_end;
+  let melhor = null;
+  Object.values((DEF && DEF.products) || {}).forEach(p => {
+    const e = p.weeks[p.weeks.length-1];
+    if(!melhor || e.end > melhor.end) melhor = e;
+  });
+  const wrap = $('#b-def-wrap');
+  if(!melhor){ wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const atraso = dias(ppiEnd, melhor.end);
+  $('#b-def').textContent = melhor.label + (atraso > 0 ? ` (${atraso} dias atrás)` : '');
+}
+
+/* ------------------------- qualidade ------------------------- */
+function renderQualidade(){
+  const card = $('#card-qual');
+  const itens = (QUAL && QUAL.achados) ? QUAL.achados : [];
+  if(!itens.length){ card.hidden = true; return; }
+  card.hidden = false;
+  const r = QUAL.resumo || {};
+  $('#qual-hint').textContent =
+    `${r.erro||0} erro(s), ${r.aviso||0} aviso(s) e ${r.info||0} nota(s) nas checagens sobre o que a ANP publicou.`;
+  $('#qual').innerHTML = itens.map(a => `
+    <div class="qi ${a.nivel}">
+      <span class="tag">${a.nivel}</span>
+      <span>${a.texto}</span>
+    </div>`).join('');
+}
+
+/* ------------------------- tabela ------------------------- */
+function renderTabela(){
+  const linhas = DATA.order.map(k => {
+    const p = DATA.products[k];
+    const c = decOf(p.unit);
+    const w = p.weeks[p.weeks.length-1];
+    const prev = p.weeks[p.weeks.length-2];
+    const now = mean(w.v), ant = prev ? mean(prev.v) : null;
+    const d = (DEF && DEF.products) ? DEF.products[k] : null;
+    const dw = d ? d.weeks[d.weeks.length-1] : null;
+    return {k, p, c, w, ppi:now, var:(now&&ant)?(now/ant-1)*100:null, dw};
+  });
+
+  const semPPI = dfmt(DATA.latest_week_end);
+  let semDef = null;
+  linhas.forEach(l => { if(l.dw && (!semDef || l.dw.end > semDef)) semDef = l.dw.end; });
+
+  const head = `<thead><tr>
+      <th>Produto</th><th>Unidade</th>
+      <th>PPI médio<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${semPPI}</span></th>
+      <th>Variação<br><span style="font-weight:400;text-transform:none;letter-spacing:0">na semana</span></th>
+      ${semDef ? `<th>PPI<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${dfmt(semDef)}</span></th>
+      <th>Realização<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${dfmt(semDef)}</span></th>
+      <th>Defasagem<br><span style="font-weight:400;text-transform:none;letter-spacing:0">R$</span></th>
+      <th>Defasagem<br><span style="font-weight:400;text-transform:none;letter-spacing:0">%</span></th>` : ''}
+    </tr></thead>`;
+
+  const body = linhas.map(l => {
+    const cls = v => v===null||v===undefined ? '' : (v>0 ? 'pos' : 'neg');
+    const dcells = !semDef ? '' : (l.dw ? `
+      <td>${nfmt(l.dw.ppi, l.c)}</td>
+      <td>${nfmt(l.dw.real, l.c)}</td>
+      <td class="${cls(l.dw.gap)}">${nfmt(l.dw.gap, l.c)}</td>
+      <td class="${cls(l.dw.gap_pct)}"><b>${pfmt(l.dw.gap_pct)}</b></td>`
+      : `<td colspan="4" style="text-align:left;color:var(--dim)">sem defasagem publicada</td>`);
+    return `<tr>
+      <td><span class="sw" style="background:${PALETTE[l.k]}"></span>${l.p.title}</td>
+      <td style="color:var(--dim)">${l.p.unit}</td>
+      <td>${nfmt(l.ppi, l.c)}</td>
+      <td class="${cls(l.var)}">${pfmt(l.var)}</td>
+      ${dcells}
+    </tr>`;
+  }).join('');
+
+  const cap = semDef
+    ? `<caption>As colunas de defasagem são da semana de ${dfmt(semDef)}, e não da semana do PPI: a planilha de produtores da ANP sai cerca de dez dias depois do fim da semana.</caption>`
+    : '';
+  $('#tbl').innerHTML = head + `<tbody>${body}</tbody>` + cap;
 }
 
 /* ------------------------- charts ------------------------- */
@@ -366,9 +504,9 @@ function renderDefasagem(){
   if(!d){
     clear('c-def'); clear('c-gapt');
     na.hidden = false;
-    na.textContent = state.p === 'qav'
-      ? 'Sem série de defasagem do QAV nesta execução. A alíquota federal do querosene de aviação está zerada até 31/07/2026 (Decreto 12.991/2026); passada essa data, sem prorrogação registrada em scripts/tributos.json, as semanas ficam sem defasagem em vez de receberem um tributo presumido.'
-      : 'Sem série de preço de realização para este produto.';
+    na.textContent = 'Sem série de defasagem para este produto nesta execução. '
+      + 'Quando não há alíquota federal vigente registrada em scripts/tributos.json para a semana, '
+      + 'ela fica de fora em vez de receber um tributo presumido.';
     $('#def-hint').textContent = 'Indisponível para este produto.';
     return;
   }
@@ -376,8 +514,10 @@ function renderDefasagem(){
 
   const weeks = inRange(d.weeks);
   const labels = weeks.map(w => dfmt(w.end));
+  const ult = d.weeks[d.weeks.length-1];
   $('#def-hint').textContent =
-    `${p.title} · ${p.unit} · série disponível desde ${dfmt(DEF.inicio_serie)}, ambas as curvas sem tributos.`;
+    `${p.title} · ${p.unit} · até a semana de ${dfmt(ult.end)}, desde ${dfmt(DEF.inicio_serie)}. `
+    + `Ambas as curvas sem tributos.`;
 
   draw('c-def', {
     type:'line',
@@ -425,6 +565,44 @@ function renderDefasagem(){
   });
 }
 
+function renderDefComp(){
+  if(!DEF || !DEF.products){ clear('c-defcomp'); return; }
+  // Eixo de tempo: o produto com mais semanas no periodo, para nao cortar serie.
+  let ref = [];
+  Object.values(DEF.products).forEach(p => {
+    const w = inRange(p.weeks);
+    if(w.length > ref.length) ref = w;
+  });
+  if(!ref.length){ clear('c-defcomp'); return; }
+  const ends = ref.map(w => w.end);
+  const labels = ends.map(dfmt);
+
+  const ds = (DEF.order || Object.keys(DEF.products)).map(k => {
+    const p = DEF.products[k];
+    const map = new Map(p.weeks.map(w => [w.end, w.gap_pct]));
+    return {
+      label: p.label, data: ends.map(e => map.has(e) ? map.get(e) : null),
+      borderColor: PALETTE[k], backgroundColor: PALETTE[k],
+      borderWidth: k===state.p ? 2.6 : 1.5,
+      pointRadius:0, pointHoverRadius:3, tension:.25, spanGaps:true
+    };
+  });
+
+  draw('c-defcomp', {
+    type:'line', data:{labels, datasets:ds},
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'line',boxWidth:22,padding:14}},
+        tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,
+          callbacks:{label:c=>` ${c.dataset.label}: ${pfmt(c.parsed.y)}`}}
+      },
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,autoSkip:true}},
+              y:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(0)+'%'}}}
+    }
+  });
+}
+
 function renderCharts(){
   const p = P(), idx = selIdx();
   const weeks = inRange(p.weeks);
@@ -432,6 +610,7 @@ function renderCharts(){
   const n = p.locations.length;
 
   renderDefasagem();
+  renderDefComp();
 
   const lines = idx.map(i => ({
     label: p.locations[i], data: weeks.map(w => w.v[i]),
@@ -523,30 +702,37 @@ function renderMetodologia(){
   // Alíquota vencida ou prestes a vencer: sem este aviso o produto encolhe no
   // gráfico e nada na tela explica por quê.
   const av = (DEF.avisos_cobertura || []);
-  const cor = av.some(a => a.nivel === 'erro') ? 'var(--down)' : 'var(--dim)';
+  const cor = av.some(a => a.nivel === 'erro') ? 'var(--up)' : 'var(--dim)';
   const box = !av.length ? '' :
     `<div style="border-left:2px solid ${cor};background:var(--panel2);border-radius:0 8px 8px 0;` +
     `padding:10px 12px;margin-bottom:12px"><b>Cobertura de alíquotas.</b><br>` +
     av.map(a => a.texto).join('<br>') + `</div>`;
   $('#meto').innerHTML = box +
-    `<b>Como é calculado.</b> A defasagem é o preço de realização menos o PPI, na mesma base tributária. ` +
-    `O PPI é publicado pela ANP sem tributos; o preço de realização vem da planilha semanal de produtores e ` +
-    `importadores da ANP (coluna Brasil), que inclui PIS/Pasep, Cofins e Cide — esses tributos são deduzidos ` +
-    `com as alíquotas <i>ad rem</i> versionadas em <code>scripts/tributos.json</code>.<br><br>` +
+    `<b>Como é calculado.</b> A defasagem é o preço de realização menos o PPI, na mesma base tributária ` +
+    `e na mesma semana. O PPI é publicado pela ANP sem tributos; o preço de realização vem da planilha ` +
+    `semanal de produtores e importadores da ANP (coluna Brasil), que inclui PIS/Pasep, Cofins e Cide — ` +
+    `esses tributos são deduzidos com as alíquotas <i>ad rem</i> versionadas em <code>scripts/tributos.json</code>.<br><br>` +
+    `<b>Por que a defasagem atrasa em relação ao PPI.</b> As duas fontes não saem juntas: o PPI é publicado ` +
+    `poucos dias depois do fim da semana e a planilha de produtores, cerca de dez dias depois. A defasagem ` +
+    `só existe para semanas em que as duas pontas estão disponíveis, então ela é normalmente de uma semana ` +
+    `anterior à do PPI. Nesta página cada bloco diz de que semana é o número.<br><br>` +
     `<b>Conferência.</b> A cada execução o resultado é comparado com os valores de realização e de PPI que a ` +
     `própria ANP publica na <a href="${DEF.sintese_page || '#'}" target="_blank" rel="noopener">Síntese Semanal de Preços</a>. ` +
     `Na última conferência o erro máximo foi de 0,12%. ` +
     `<b>O QAV é a exceção:</b> a Síntese não cobre esse produto, então não há realização publicada para conferir. ` +
-    `A dedução vem direto do Decreto 5.059/2004 (art. 2º, IV — PIS R$ 12,69/m³ e Cofins R$ 58,51/m³, ou R$ 0,0712/l) ` +
-    `com a Cide zerada pelo Decreto 5.060/2004, e está zerada de 13/04/2026 a 31/07/2026 pelos Decretos 12.924 e 12.991/2026. ` +
-    `A semana de 06/04/2026 fica de fora por ser mista: a desoneração começou numa quarta-feira.<br><br>` +
+    `A dedução vem do Decreto 5.059/2004 (art. 2º, IV — PIS R$ 12,69/m³ e Cofins R$ 58,51/m³, ou R$ 0,0712/l), ` +
+    `com a Cide zerada pelo Decreto 5.060/2004. A conferência possível é o teste de continuidade na virada de ` +
+    `alíquota, publicado em <code>docs/data/qualidade.json</code>.<br><br>` +
     `<b>Limites.</b> A série começa em ${dfmt(DEF.inicio_serie)}, quando passa a valer o regime de alíquotas ` +
     `conferido; semanas anteriores ficam de fora em vez de receberem um número calculado sobre base incerta. ` +
     `O preço de realização é a média ponderada de todos os produtores e importadores do país, não apenas da Petrobras.`;
 }
 
 /* ------------------------- orchestration ------------------------- */
-function renderAll(){ renderTabs(); renderChips(); renderKPIs(); renderCharts(); renderMetodologia(); }
+function renderAll(){
+  renderTabs(); renderChips(); renderKPIs(); renderCabecalho();
+  renderQualidade(); renderTabela(); renderCharts(); renderMetodologia();
+}
 
 function bindUI(){
   $('#range').querySelectorAll('button').forEach(b => b.onclick = () => {
@@ -564,21 +750,22 @@ function bindUI(){
   };
 }
 
-async function boot(){
+async function pega(nome){
   try{
-    const r = await fetch('./data/ppi.json', {cache:'no-cache'});
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    DATA = await r.json();
-  }catch(err){
+    const r = await fetch('./data/' + nome, {cache:'no-cache'});
+    return r.ok ? await r.json() : null;
+  }catch(err){ return null; }
+}
+
+async function boot(){
+  DATA = await pega('ppi.json');
+  if(!DATA){
     $('#loading').innerHTML = `<p><b>Dados ainda não gerados.</b></p>
-      <p>Rode o workflow <code>Atualizar PPI (ANP)</code> no GitHub Actions para criar <code>docs/data/ppi.json</code>.</p>
-      <p style="color:var(--dim)">${err.message}</p>`;
+      <p>Rode o workflow <code>Atualizar PPI (ANP)</code> no GitHub Actions para criar <code>docs/data/ppi.json</code>.</p>`;
     return;
   }
-  try{
-    const r2 = await fetch('./data/defasagem.json', {cache:'no-cache'});
-    if(r2.ok) DEF = await r2.json();
-  }catch(err){ DEF = null; }
+  DEF = await pega('defasagem.json');
+  QUAL = await pega('qualidade.json');
 
   await new Promise(res => { if(window.Chart) return res(); window.addEventListener('load', res, {once:true}); });
   applyChartTheme();
