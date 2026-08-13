@@ -2,8 +2,15 @@ name: Atualizar PPI (ANP)
 
 on:
   schedule:
-    # Segunda-feira, 20:00 America/Sao_Paulo (UTC-3) = 23:00 UTC
+    # Segunda-feira, 20:00 America/Sao_Paulo (UTC-3) = 23:00 UTC.
+    # Melhor janela da semana: a ANP publica o PPI na propria segunda e a
+    # planilha de produtores entra cerca de 10 dias apos o fim da semana.
+    # Esta e a unica execucao que dispara o e-mail.
     - cron: "0 23 * * 1"
+    # Todo dia as 08:00 America/Sao_Paulo = 11:00 UTC, so coleta.
+    # Se a ANP atrasar a publicacao de segunda, o painel se atualiza no dia
+    # seguinte em vez de ficar uma semana parado. Commit so sai se o dado mudar.
+    - cron: "0 11 * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -57,10 +64,12 @@ jobs:
             git push
           fi
 
-      # Envia so no agendamento de segunda-feira e nas execucoes manuais,
-      # para que commits de codigo nao gerem e-mail.
+      # Envia so no agendamento de segunda-feira e nas execucoes manuais.
+      # A coleta diaria e os commits de codigo atualizam o painel em silencio.
       - name: Enviar e-mail semanal
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'schedule' && github.event.schedule == '0 23 * * 1')
         env:
           SMTP_HOST: smtp.gmail.com
           SMTP_PORT: "587"
