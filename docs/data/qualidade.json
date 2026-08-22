@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-08-21T08:15:29-03:00",
- "comparado_com": "2026-08-20T08:16:03-03:00",
+ "generated_at": "2026-08-22T08:10:17-03:00",
+ "comparado_com": "2026-08-21T08:15:19-03:00",
  "limiares": {
   "variacao_aviso_pct": 20.0,
   "variacao_erro_pct": 60.0,
@@ -19,7 +19,7 @@
    "codigo": "aliquota_presumida",
    "produto": "qav",
    "label": "QAV",
-   "texto": "QAV: a aliquota vigente desde 03/08/2026 e presumida e ainda nao ha semanas suficientes depois do corte para o teste de continuidade rodar. Confirmar em fonte oficial."
+   "texto": "QAV: a aliquota vigente desde 03/08/2026 e presumida, nao confirmada em fonte oficial. O teste de continuidade e inconclusivo: o preco se moveu 5 vezes mais que a mudanca de aliquota no periodo, entao ele nao confirma nem desmente a presuncao."
   },
   {
    "nivel": "info",
@@ -57,6 +57,20 @@
    "semanas_antes": 6,
    "semanas_depois": 6,
    "presumida": false
+  },
+  {
+   "produto": "qav",
+   "label": "QAV",
+   "corte": "2026-08-03",
+   "taxa_antes": 0.0,
+   "taxa_depois": 0.0712,
+   "mudanca_taxa": 0.0712,
+   "salto_defasagem": -0.457943,
+   "residuo": 0.386743,
+   "razao_residuo": 5.432,
+   "semanas_antes": 6,
+   "semanas_depois": 2,
+   "presumida": true
   }
  ]
 }
