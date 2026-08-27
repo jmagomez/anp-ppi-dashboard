@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: "ci-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -43,10 +43,8 @@ jobs:
       - name: Lint
         run: ruff check --select E9,F scripts tests
 
+      # A suite cobre a logica e tambem o contrato dos JSON publicados
+      # (tests/test_json_publicado.py), que antes era um python -c colado aqui
+      # no YAML -- e cujo dois-pontos dentro da string quebrou o parse.
       - name: Testes
         run: pytest tests -q
-
-      # Um JSON corrompido em docs/data derruba o dashboard em silencio: o
-      # fetch falha e a pagina fica presa no "Carregando dados da ANP".
-      - name: Conferir os JSON publicados
-        run: python -c "import glob,json;[json.load(open(f,encoding='utf-8')) for f in glob.glob('docs/data/*.json')];print('JSON publicados: ok')"
