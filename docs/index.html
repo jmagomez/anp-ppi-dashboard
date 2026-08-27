@@ -3,10 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <title>PPI ANP · Preços de Paridade de Importação</title>
 <meta name="description" content="Dashboard interativo dos Preços de Paridade de Importação (PPI) da ANP e da defasagem em relação ao preço de realização: Gasolina A, Diesel A S10, QAV e GLP.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0E14'/%3E%3Cpath d='M5 22 L12 13 L18 18 L27 7' fill='none' stroke='%23F2B441' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+<!-- Hash de integridade: sem ele a pagina executa o que o CDN mandar. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD"
+        crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 <style>
 :root{
   --bg:#0A0E14; --panel:#111823; --panel2:#0D131C; --line:#1D2733;
@@ -99,6 +104,8 @@ header.top{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-con
 .na{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim);
   text-align:center;font-size:13px;padding:0 34px;line-height:1.6}
 .dl{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.faixa{border:1px solid var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);
+  border-radius:12px;padding:12px 15px;margin-bottom:16px;font-size:13px;line-height:1.6;color:var(--txt)}
 
 /* ---------- qualidade ---------- */
 .qual{display:flex;flex-direction:column;gap:8px}
@@ -151,6 +158,8 @@ footer div{margin-bottom:6px}
   <nav class="tabs" id="tabs"></nav>
 
   <div id="app" hidden>
+    <div class="faixa" id="sem-graficos" hidden></div>
+
     <div class="controls">
       <div class="seg" id="range">
         <button data-r="3m">3M</button>
@@ -179,19 +188,26 @@ footer div{margin-bottom:6px}
       <section class="card c8">
         <h2>Defasagem: PPI × preço de realização</h2>
         <p class="hint" id="def-hint">Paridade de importação contra o preço praticado por produtores e importadores, ambos sem tributos.</p>
-        <div class="chart-box tall"><canvas id="c-def"></canvas><div class="na" id="def-na" hidden></div></div>
+        <div class="chart-box tall">
+          <canvas id="c-def" role="img" aria-label="Séries semanais do PPI e do preço de realização do produto selecionado."></canvas>
+          <div class="na" id="def-na" hidden></div>
+        </div>
       </section>
 
       <section class="card c4">
         <h2>Defasagem no tempo</h2>
-        <p class="hint">Quanto o preço interno esteve acima (vermelho) ou abaixo (verde) da paridade.</p>
-        <div class="chart-box tall"><canvas id="c-gapt"></canvas></div>
+        <p class="hint">Barras acima de zero: preço interno acima da paridade. Abaixo de zero: abaixo dela.</p>
+        <div class="chart-box tall">
+          <canvas id="c-gapt" role="img" aria-label="Defasagem percentual semana a semana do produto selecionado."></canvas>
+        </div>
       </section>
 
       <section class="card c12">
         <h2>Defasagem comparada entre produtos</h2>
         <p class="hint">Os quatro produtos na mesma escala. Acima de zero, preço interno acima da paridade.</p>
-        <div class="chart-box"><canvas id="c-defcomp"></canvas></div>
+        <div class="chart-box">
+          <canvas id="c-defcomp" role="img" aria-label="Defasagem percentual de gasolina, diesel, QAV e GLP na mesma escala."></canvas>
+        </div>
       </section>
 
       <section class="card c12">
@@ -205,25 +221,33 @@ footer div{margin-bottom:6px}
       <section class="card c8">
         <h2>Série histórica do PPI</h2>
         <p class="hint" id="hist-hint">Preço por terminal e média nacional simples.</p>
-        <div class="chart-box tall"><canvas id="c-hist"></canvas></div>
+        <div class="chart-box tall">
+          <canvas id="c-hist" role="img" aria-label="Série histórica do PPI por terminal, com a média nacional destacada."></canvas>
+        </div>
       </section>
 
       <section class="card c4">
         <h2>Dispersão entre terminais</h2>
         <p class="hint" id="disp-hint">Diferença % de cada terminal em relação à média da semana.</p>
-        <div class="chart-box tall"><canvas id="c-gap"></canvas></div>
+        <div class="chart-box tall">
+          <canvas id="c-gap" role="img" aria-label="Diferença percentual de cada terminal em relação à média da semana."></canvas>
+        </div>
       </section>
 
       <section class="card c6">
         <h2>Variação semanal da média</h2>
         <p class="hint">Variação % do PPI médio em relação à semana anterior.</p>
-        <div class="chart-box"><canvas id="c-var"></canvas></div>
+        <div class="chart-box">
+          <canvas id="c-var" role="img" aria-label="Variação percentual semanal do PPI médio."></canvas>
+        </div>
       </section>
 
       <section class="card c6">
         <h2>Comparativo entre produtos</h2>
         <p class="hint">PPI médio de cada produto indexado a 100 no início do período.</p>
-        <div class="chart-box"><canvas id="c-comp"></canvas></div>
+        <div class="chart-box">
+          <canvas id="c-comp" role="img" aria-label="PPI de cada produto indexado a 100 no início do período."></canvas>
+        </div>
       </section>
 
       <section class="card c12">
@@ -256,7 +280,7 @@ footer div{margin-bottom:6px}
 const PALETTE = {gasolina:'#F2B441', diesel:'#4FA8F5', qav:'#A98BF0', glp:'#35C48F'};
 const RANGE_MONTHS = {'3m':3,'6m':6,'1a':12,'3a':36,'5a':60};
 
-let DATA=null, DEF=null, QUAL=null;
+let DATA=null, DEF=null, QUAL=null, SEM_CHART=false;
 const state = {p:null, range:'1a', sel:new Set()};
 const charts = {};
 
@@ -267,23 +291,28 @@ const P = () => DATA.products[state.p];
 const D = () => (DEF && DEF.products) ? DEF.products[state.p] : null;
 const decOf = u => /litro/i.test(u) ? 4 : 2;
 const dec = () => decOf(P().unit);
+const vazio = v => v===null || v===undefined || Number.isNaN(v);
 
 function nfmt(v, d){
-  if(v===null || v===undefined || Number.isNaN(v)) return '—';
+  if(vazio(v)) return '—';
   const n = d===undefined ? dec() : d;
   return v.toLocaleString('pt-BR',{minimumFractionDigits:n, maximumFractionDigits:n});
 }
 function pfmt(v, d){
-  if(v===null || v===undefined || Number.isNaN(v)) return '—';
+  if(vazio(v)) return '—';
   const n = d===undefined ? 2 : d;
   return (v>0?'+':'') + v.toLocaleString('pt-BR',{minimumFractionDigits:n,maximumFractionDigits:n}) + '%';
 }
+// Cor sozinha nao serve: ~8% dos homens nao distinguem vermelho de verde, e o
+// sinal da defasagem e o numero que mais importa na pagina.
+function seta(v){ return vazio(v) ? '' : (v>0 ? '▲ ' : (v<0 ? '▼ ' : '')); }
+function sinal(v, d){ return seta(v) + pfmt(v, d); }
 function dfmt(iso){ const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 function dias(a, b){
   return Math.round((new Date(a+'T12:00:00') - new Date(b+'T12:00:00')) / 86400000);
 }
 function mean(arr){
-  const v = arr.filter(x => x!==null && x!==undefined && !Number.isNaN(x));
+  const v = arr.filter(x => !vazio(x));
   return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
 }
 function termColor(i, total){
@@ -305,6 +334,20 @@ function selIdx(){
 }
 function avgSeries(weeks, idx){ return weeks.map(w => mean(idx.map(i=>w.v[i]))); }
 
+/* ------------------------- tema ------------------------- */
+// Guardado entre visitas; na primeira, segue a preferencia do sistema.
+function lerTema(){
+  try{ const t = localStorage.getItem('ppi-tema'); if(t) return t; }catch(e){}
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+    ? 'light' : 'dark';
+}
+function aplicarTema(t){
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = $('#theme-btn');
+  if(btn) btn.textContent = t === 'light' ? 'Tema escuro' : 'Tema claro';
+  try{ localStorage.setItem('ppi-tema', t); }catch(e){}
+}
+
 /* ------------------------- chart defaults ------------------------- */
 function applyChartTheme(){
   if(!window.Chart) return;
@@ -319,10 +362,29 @@ function applyChartTheme(){
   t.borderWidth = 1; t.padding = 10; t.cornerRadius = 8; t.boxPadding = 5;
 }
 function draw(id, cfg){
+  if(SEM_CHART) return;
   if(charts[id]) charts[id].destroy();
   charts[id] = new Chart(document.getElementById(id), cfg);
 }
 function clear(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+// Sem o CDN, os graficos ficavam como caixas vazias e a pagina nao dizia nada.
+// Os numeros nao dependem do Chart.js, entao ela degrada para eles.
+function avisarSemGraficos(){
+  SEM_CHART = true;
+  const f = $('#sem-graficos');
+  f.hidden = false;
+  f.innerHTML = '<b>Os gráficos não carregaram.</b> A biblioteca Chart.js vem de um CDN '
+    + 'externo (cdnjs.cloudflare.com) e não pôde ser carregada — pode ser bloqueio de rede, '
+    + 'o CDN fora do ar, ou o arquivo ter mudado e falhado na verificação de integridade. '
+    + 'Os números abaixo vêm dos dados publicados e seguem corretos; só a parte visual '
+    + 'está indisponível.';
+  document.querySelectorAll('.chart-box').forEach(b => {
+    b.style.height = 'auto';
+    b.innerHTML = '<p style="color:var(--dim);font-size:12.5px;margin:0;padding:14px 0">'
+      + 'Gráfico indisponível sem a biblioteca externa.</p>';
+  });
+}
 
 /* ------------------------- tabs & chips ------------------------- */
 function renderTabs(){
@@ -335,8 +397,9 @@ function renderTabs(){
     const gap = d ? d.weeks[d.weeks.length-1].gap_pct : null;
     const b = document.createElement('button');
     b.className = 'tab' + (k===state.p ? ' on' : '');
+    b.setAttribute('aria-pressed', String(k===state.p));
     b.innerHTML = `${p.title}<small>${p.unit} · ${nfmt(mean(last.v), decOf(p.unit))}` +
-                  (gap===null ? '' : ` · defasagem ${pfmt(gap)}`) + `</small>`;
+                  (gap===null ? '' : ` · defasagem ${sinal(gap)}`) + `</small>`;
     b.onclick = () => { state.p = k; state.sel = new Set(p.locations); renderAll(); };
     el.appendChild(b);
   });
@@ -348,6 +411,7 @@ function renderChips(){
   P().locations.forEach((name,i) => {
     const b = document.createElement('button');
     b.className = 'chip' + (state.sel.has(name) ? ' on' : '');
+    b.setAttribute('aria-pressed', String(state.sel.has(name)));
     b.innerHTML = `<span class="sw" style="background:${state.sel.has(name)?termColor(i,P().locations.length):'var(--dim)'}"></span>${name}`;
     b.onclick = () => {
       state.sel.has(name) ? state.sel.delete(name) : state.sel.add(name);
@@ -384,20 +448,20 @@ function renderKPIs(){
   const cards = [];
   if(dw){
     cards.push({
-      lab:'Defasagem vs. paridade', wk:`semana de ${semDef}`, val:pfmt(dw.gap_pct),
+      lab:'Defasagem vs. paridade', wk:`semana de ${semDef}`, val:sinal(dw.gap_pct),
       sub:`${nfmt(dw.gap)} ${p.unit} · preço interno ${dw.gap_pct<0?'abaixo':'acima'} do PPI`,
       cls: dw.gap_pct>0 ? 'up' : 'down', hl:true
     });
     cards.push({
       lab:'Realização vs. PPI', wk:`semana de ${semDef}`, val:nfmt(dw.real),
-      sub:`PPI ${nfmt(dw.ppi)} ${p.unit}` + (dprev ? ` · semana anterior ${pfmt(dprev.gap_pct)}` : '')
+      sub:`PPI ${nfmt(dw.ppi)} ${p.unit}` + (dprev ? ` · semana anterior ${sinal(dprev.gap_pct)}` : '')
     });
   }
   cards.push({lab:'PPI médio', wk:`semana de ${semPPI}`, val:nfmt(avgNow),
     sub:`${p.unit} · ${vals.length} de ${p.locations.length} terminais com dado`});
-  cards.push({lab:'Variação semanal do PPI', wk:`semana de ${semPPI}`, val:pfmt(wow),
+  cards.push({lab:'Variação semanal do PPI', wk:`semana de ${semPPI}`, val:sinal(wow),
     sub:prev?`vs. semana encerrada em ${dfmt(prev.end)}`:'—', cls:wow>0?'up':(wow<0?'down':'')});
-  cards.push({lab:'Variação 12 meses', wk:`semana de ${semPPI}`, val:pfmt(yoy),
+  cards.push({lab:'Variação 12 meses', wk:`semana de ${semPPI}`, val:sinal(yoy),
     sub:yoyWeek?`vs. ${dfmt(yoyWeek.end)}`:'—', cls:yoy>0?'up':(yoy<0?'down':'')});
   cards.push({lab:'Dispersão entre terminais', wk:`semana de ${semPPI}`, val:nfmt(spread),
     sub:(spread!==null&&avgNow)?`${pfmt(spread/avgNow*100).replace('+','')} da média`:'—'});
@@ -463,29 +527,30 @@ function renderTabela(){
   let semDef = null;
   linhas.forEach(l => { if(l.dw && (!semDef || l.dw.end > semDef)) semDef = l.dw.end; });
 
+  const sub = t => `<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${t}</span>`;
   const head = `<thead><tr>
-      <th>Produto</th><th>Unidade</th>
-      <th>PPI médio<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${semPPI}</span></th>
-      <th>Variação<br><span style="font-weight:400;text-transform:none;letter-spacing:0">na semana</span></th>
-      ${semDef ? `<th>PPI<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${dfmt(semDef)}</span></th>
-      <th>Realização<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${dfmt(semDef)}</span></th>
-      <th>Defasagem<br><span style="font-weight:400;text-transform:none;letter-spacing:0">R$</span></th>
-      <th>Defasagem<br><span style="font-weight:400;text-transform:none;letter-spacing:0">%</span></th>` : ''}
+      <th scope="col">Produto</th><th scope="col">Unidade</th>
+      <th scope="col">PPI médio${sub(semPPI)}</th>
+      <th scope="col">Variação${sub('na semana')}</th>
+      ${semDef ? `<th scope="col">PPI${sub(dfmt(semDef))}</th>
+      <th scope="col">Realização${sub(dfmt(semDef))}</th>
+      <th scope="col">Defasagem${sub('R$')}</th>
+      <th scope="col">Defasagem${sub('%')}</th>` : ''}
     </tr></thead>`;
 
   const body = linhas.map(l => {
-    const cls = v => v===null||v===undefined ? '' : (v>0 ? 'pos' : 'neg');
+    const cls = v => vazio(v) ? '' : (v>0 ? 'pos' : 'neg');
     const dcells = !semDef ? '' : (l.dw ? `
       <td>${nfmt(l.dw.ppi, l.c)}</td>
       <td>${nfmt(l.dw.real, l.c)}</td>
-      <td class="${cls(l.dw.gap)}">${nfmt(l.dw.gap, l.c)}</td>
-      <td class="${cls(l.dw.gap_pct)}"><b>${pfmt(l.dw.gap_pct)}</b></td>`
+      <td class="${cls(l.dw.gap)}">${seta(l.dw.gap)}${nfmt(l.dw.gap, l.c)}</td>
+      <td class="${cls(l.dw.gap_pct)}"><b>${sinal(l.dw.gap_pct)}</b></td>`
       : `<td colspan="4" style="text-align:left;color:var(--dim)">sem defasagem publicada</td>`);
     return `<tr>
-      <td><span class="sw" style="background:${PALETTE[l.k]}"></span>${l.p.title}</td>
+      <th scope="row" style="text-align:left;font-weight:600;padding:9px 10px;border-bottom:1px solid var(--grid);text-transform:none;letter-spacing:0;font-size:12.5px;color:var(--txt)"><span class="sw" style="background:${PALETTE[l.k]}"></span>${l.p.title}</th>
       <td style="color:var(--dim)">${l.p.unit}</td>
       <td>${nfmt(l.ppi, l.c)}</td>
-      <td class="${cls(l.var)}">${pfmt(l.var)}</td>
+      <td class="${cls(l.var)}">${sinal(l.var)}</td>
       ${dcells}
     </tr>`;
   }).join('');
@@ -503,14 +568,16 @@ function renderDefasagem(){
 
   if(!d){
     clear('c-def'); clear('c-gapt');
-    na.hidden = false;
-    na.textContent = 'Sem série de defasagem para este produto nesta execução. '
-      + 'Quando não há alíquota federal vigente registrada em scripts/tributos.json para a semana, '
-      + 'ela fica de fora em vez de receber um tributo presumido.';
+    if(na){
+      na.hidden = false;
+      na.textContent = 'Sem série de defasagem para este produto nesta execução. '
+        + 'Quando não há alíquota federal vigente registrada em scripts/tributos.json para a semana, '
+        + 'ela fica de fora em vez de receber um tributo presumido.';
+    }
     $('#def-hint').textContent = 'Indisponível para este produto.';
     return;
   }
-  na.hidden = true;
+  if(na) na.hidden = true;
 
   const weeks = inRange(d.weeks);
   const labels = weeks.map(w => dfmt(w.end));
@@ -537,7 +604,7 @@ function renderDefasagem(){
           label:c=>` ${c.dataset.label}: ${nfmt(c.parsed.y)} ${p.unit}`,
           afterBody:items=>{
             const w = weeks[items[0].dataIndex];
-            return `defasagem: ${pfmt(w.gap_pct)} (${nfmt(w.gap)} ${p.unit})`;
+            return `defasagem: ${sinal(w.gap_pct)} (${nfmt(w.gap)} ${p.unit})`;
           }
         }}
       },
@@ -558,7 +625,7 @@ function renderDefasagem(){
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>` defasagem ${pfmt(c.parsed.y)}`}}},
+        tooltip:{callbacks:{label:c=>` defasagem ${sinal(c.parsed.y)}`}}},
       scales:{x:{grid:{display:false},ticks:{maxTicksLimit:7}},
               y:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(0)+'%'}}}
     }
@@ -595,7 +662,7 @@ function renderDefComp(){
       plugins:{
         legend:{position:'bottom',labels:{usePointStyle:true,pointStyle:'line',boxWidth:22,padding:14}},
         tooltip:{itemSort:(a,b)=>b.parsed.y-a.parsed.y,
-          callbacks:{label:c=>` ${c.dataset.label}: ${pfmt(c.parsed.y)}`}}
+          callbacks:{label:c=>` ${c.dataset.label}: ${sinal(c.parsed.y)}`}}
       },
       scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,autoSkip:true}},
               y:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(0)+'%'}}}
@@ -604,6 +671,7 @@ function renderDefComp(){
 }
 
 function renderCharts(){
+  if(SEM_CHART) return;
   const p = P(), idx = selIdx();
   const weeks = inRange(p.weeks);
   const labels = weeks.map(w => dfmt(w.end));
@@ -649,7 +717,7 @@ function renderCharts(){
     options:{
       indexAxis:'y', responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>` ${pfmt(c.parsed.x)} · ${nfmt(gaps[c.dataIndex].v)} ${p.unit}`}}},
+        tooltip:{callbacks:{label:c=>` ${sinal(c.parsed.x)} · ${nfmt(gaps[c.dataIndex].v)} ${p.unit}`}}},
       scales:{x:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(1)+'%'}},
               y:{grid:{display:false},ticks:{font:{size:10.5}}}}
     }
@@ -666,7 +734,7 @@ function renderCharts(){
     }]},
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${pfmt(c.parsed.y)}`}}},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${sinal(c.parsed.y)}`}}},
       scales:{x:{grid:{display:false},ticks:{maxTicksLimit:9}},
               y:{grid:{color:cssVar('--grid')},ticks:{callback:v=>v.toFixed(1)+'%'}}}
     }
@@ -707,6 +775,26 @@ function renderMetodologia(){
     `<div style="border-left:2px solid ${cor};background:var(--panel2);border-radius:0 8px 8px 0;` +
     `padding:10px 12px;margin-bottom:12px"><b>Cobertura de alíquotas.</b><br>` +
     av.map(a => a.texto).join('<br>') + `</div>`;
+
+  // O numero da conferencia vem do pipeline. Antes era texto fixo: continuaria
+  // afirmando "0,12%" mesmo que a ANP revisasse um valor.
+  const v = DEF.validacao;
+  let conf;
+  if(!v || v.erro_max_pct === null || v.erro_max_pct === undefined){
+    conf = `<b>Conferência.</b> Esta execução não produziu o resultado da conferência contra a `
+         + `Síntese Semanal — o que por si só merece atenção.`;
+  }else{
+    const naoCobre = (v.sem_conferencia || []).length
+      ? ` Sem ponto de conferência para ${v.sem_conferencia.join(', ')}, porque a Síntese não cobre esse produto.`
+      : '';
+    conf = `<b>Conferência.</b> A cada execução o resultado é comparado com os valores que a própria ANP `
+         + `publica na <a href="${DEF.sintese_page || '#'}" target="_blank" rel="noopener">Síntese Semanal de Preços</a>. `
+         + `Nesta execução: <b>${v.n_pontos} pontos</b> da edição ${v.edicao_sintese}, erro máximo de `
+         + `<b>${pfmt(v.erro_max_pct).replace('+','')}</b> e médio de ${pfmt(v.erro_medio_pct, 3).replace('+','')}.`
+         + naoCobre
+         + `<br><span style="color:var(--dim)">${v.natureza}</span>`;
+  }
+
   $('#meto').innerHTML = box +
     `<b>Como é calculado.</b> A defasagem é o preço de realização menos o PPI, na mesma base tributária ` +
     `e na mesma semana. O PPI é publicado pela ANP sem tributos; o preço de realização vem da planilha ` +
@@ -716,13 +804,7 @@ function renderMetodologia(){
     `poucos dias depois do fim da semana e a planilha de produtores, cerca de dez dias depois. A defasagem ` +
     `só existe para semanas em que as duas pontas estão disponíveis, então ela é normalmente de uma semana ` +
     `anterior à do PPI. Nesta página cada bloco diz de que semana é o número.<br><br>` +
-    `<b>Conferência.</b> A cada execução o resultado é comparado com os valores de realização e de PPI que a ` +
-    `própria ANP publica na <a href="${DEF.sintese_page || '#'}" target="_blank" rel="noopener">Síntese Semanal de Preços</a>. ` +
-    `Na última conferência o erro máximo foi de 0,12%. ` +
-    `<b>O QAV é a exceção:</b> a Síntese não cobre esse produto, então não há realização publicada para conferir. ` +
-    `A dedução vem do Decreto 5.059/2004 (art. 2º, IV — PIS R$ 12,69/m³ e Cofins R$ 58,51/m³, ou R$ 0,0712/l), ` +
-    `com a Cide zerada pelo Decreto 5.060/2004. A conferência possível é o teste de continuidade na virada de ` +
-    `alíquota, publicado em <code>docs/data/qualidade.json</code>.<br><br>` +
+    conf + `<br><br>` +
     `<b>Limites.</b> A série começa em ${dfmt(DEF.inicio_serie)}, quando passa a valer o regime de alíquotas ` +
     `conferido; semanas anteriores ficam de fora em vez de receberem um número calculado sobre base incerta. ` +
     `O preço de realização é a média ponderada de todos os produtores e importadores do país, não apenas da Petrobras.`;
@@ -743,9 +825,8 @@ function bindUI(){
   $('#sel-all').onclick = () => { state.sel = new Set(P().locations); renderChips(); renderKPIs(); renderCharts(); };
   $('#sel-none').onclick = () => { state.sel = new Set(); renderChips(); renderKPIs(); renderCharts(); };
   $('#theme-btn').onclick = () => {
-    const light = document.documentElement.getAttribute('data-theme') === 'light';
-    document.documentElement.setAttribute('data-theme', light ? 'dark' : 'light');
-    $('#theme-btn').textContent = light ? 'Tema claro' : 'Tema escuro';
+    const claro = document.documentElement.getAttribute('data-theme') === 'light';
+    aplicarTema(claro ? 'dark' : 'light');
     applyChartTheme(); renderCharts();
   };
 }
@@ -758,6 +839,8 @@ async function pega(nome){
 }
 
 async function boot(){
+  aplicarTema(lerTema());
+
   DATA = await pega('ppi.json');
   if(!DATA){
     $('#loading').innerHTML = `<p><b>Dados ainda não gerados.</b></p>
@@ -768,13 +851,14 @@ async function boot(){
   QUAL = await pega('qualidade.json');
 
   await new Promise(res => { if(window.Chart) return res(); window.addEventListener('load', res, {once:true}); });
-  applyChartTheme();
-  state.p = DATA.order[0];
-  state.sel = new Set(DATA.products[state.p].locations);
+
   $('#b-updated').textContent = new Date(DATA.generated_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
   $('#loading').hidden = true;
   $('#app').hidden = false;
   bindUI();
+
+  if(!window.Chart){ avisarSemGraficos(); }
+  else { applyChartTheme(); }
   renderAll();
 }
 boot();
