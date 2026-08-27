@@ -53,34 +53,34 @@ data de vigência e fonte em cada faixa.
 planilha de produtores usa outro fechamento. O pareamento é feito pela segunda-feira da
 semana ISO de cada data final.
 
-### Conferência automática
+### Conferência: o que ela é e o que não é
 
-A cada execução o resultado é comparado com os valores que a própria ANP publica na
-[Síntese Semanal de Preços](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis)
-(edição 13/2026, 12 pontos de controle). Última conferência:
+A cada execução o resultado é comparado com valores que a própria ANP publicou na
+[Síntese Semanal de Preços](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis).
+O resultado — número de pontos, erro máximo e erro médio — vai para o campo `validacao` de
+`docs/data/defasagem.json` e é exibido no dashboard. **Não há número fixo no texto**: uma
+afirmação de verificação que não é reverificada envelhece mal e ninguém percebe.
 
-| Produto | Erro no PPI | Erro na realização | Tributo implícito | Tributo aplicado |
-|---|---|---|---|---|
-| Gasolina A | +0,01% | −0,07% a +0,12% | 0,8907 a 0,8958 | 0,8925 |
-| Diesel A S10 | −0,03% | +0,01% a +0,06% | 0,3552 → ~0 | 0,3550 → 0 |
-| GLP | 0,00% | −0,01% a +0,01% | ~0 | 0 |
+O que ela **é**: um teste de regressão contra pontos conhecidos (15 valores da edição 13/2026,
+gasolina, diesel e GLP). Pega alíquota errada, erro de pareamento de semana e troca de unidade.
 
-O diagnóstico completo fica em `docs/data/_debug_ppidp.json`, seção `validacao_sintese`.
-Se o **tributo implícito** divergir do **aplicado**, a alíquota mudou — corrija
-`scripts/tributos.json`.
+O que ela **não é**: validação contínua do dado mais recente. A ANP publica a Síntese só em PDF,
+então não dá para conferir a semana corrente automaticamente. E **não cobre QAV**, que não
+aparece na Síntese.
+
+Para o QAV, a checagem possível é o **teste de degrau** (abaixo). O diagnóstico completo fica
+em `docs/data/_debug_ppidp.json`, seção `validacao_sintese`. Se o **tributo implícito** divergir
+do **aplicado**, a alíquota mudou — corrija `scripts/tributos.json`.
 
 ### Limites conhecidos
 
 - A série de defasagem começa em **04/09/2023**, quando passa a valer o regime de alíquotas
   conferido. Semanas anteriores ficam de fora em vez de receberem um número calculado sobre
   base tributária incerta.
-- **QAV não tem conferência externa**: a Síntese Semanal não cobre esse produto, então não há
-  preço de realização publicado pela ANP para comparar. A dedução vem direto do Decreto
-  5.059/2004 (art. 2º, IV — PIS R$ 12,69/m³ e Cofins R$ 58,51/m³, ou R$ 0,0712/l), com a Cide
-  zerada pelo Decreto 5.060/2004. Esteve em **zero de 13/04/2026 a 31/07/2026** (Decretos
-  12.924 e 12.991/2026). A faixa a partir de **03/08/2026 é presumida**: não foi localizada
-  prorrogação publicada, então o valor volta ao estatutário e fica marcado com
-  `"presumido": true` até que a conferência feche.
+- A alíquota do QAV a partir de **03/08/2026 é presumida**: a desoneração dos Decretos
+  12.924 e 12.991/2026 venceu em 31/07/2026 e não foi localizada prorrogação publicada, então
+  o valor volta ao estatutário do Decreto 5.059/2004 (R$ 0,0712/l) marcado com
+  `"presumido": true`. O dashboard e o e-mail avisam enquanto a presunção não for confirmada.
 - O preço de realização é a média ponderada de **todos os produtores e importadores** do país,
   não apenas da Petrobras.
 - A defasagem **não é margem nem lucro**: ignora custos logísticos, tributos estaduais e a
@@ -132,7 +132,28 @@ resíduo = |salto + Δtaxa|        razão = resíduo / |Δtaxa|
 Perto de zero, a alíquota provavelmente está errada. Muito acima de 1, o mercado se moveu tanto
 no período que o teste **não conclui nada** — e isso é dito, em vez de virar falso positivo. Foi
 o que aconteceu na virada do QAV em abril/2026: o preço subiu 2,79 R$, 39 vezes a mudança de
-alíquota de 0,07 R$.
+alíquota de 0,07 R$. A primeira versão do detector chamou isso de erro; hoje há um teste de
+regressão para esse caso exato.
+
+## Testes e CI
+
+```bash
+pip install -r requirements.txt pytest
+pytest tests -q
+```
+
+O workflow **CI** roda lint e a suíte a cada push e pull request. Antes disso, um erro de
+sintaxe em `scripts/` só aparecia às 8h da manhã, na execução agendada.
+
+| arquivo | o que cobre |
+|---|---|
+| `tests/test_defasagem.py` | pareamento de semana ISO entre fontes com fechamentos diferentes, bordas de vigência das faixas, leitura de número em formato brasileiro, agregação da conferência |
+| `tests/test_qualidade.py` | cada checagem de sanidade e cada resultado possível do detector de degrau, incluindo a regressão do falso positivo |
+| `tests/test_tributos_config.py` | o próprio `tributos.json`: faixas sobrepostas, faixa aberta fora do fim, buraco de cobertura entre o início da série e hoje |
+| `tests/test_json_publicado.py` | contrato dos JSON que o dashboard busca em runtime, incluindo a identidade `defasagem = realização − PPI` |
+
+O lint usa `ruff check --select E9,F` — só sintaxe, nome indefinido e import morto. Um CI que
+reclama de estilo no primeiro dia é um CI que todos aprendem a ignorar.
 
 ## E-mail semanal
 
@@ -161,6 +182,15 @@ O envio usa SMTP e depende de secrets do repositório. **Nenhuma credencial fica
 
 Enquanto os secrets não existirem, o passo de e-mail roda e apenas gera a prévia, sem falhar.
 
+## Dashboard
+
+Página única, sem build. Notas de implementação que não são óbvias:
+
+- O **Chart.js vem de CDN com hash de integridade** (SRI). Se o arquivo mudar ou o CDN cair,
+  a página **degrada para os números** e diz o que aconteceu, em vez de mostrar caixas vazias.
+- Alta e baixa não são codificadas só por cor: cada número com sinal leva **seta** (▲ ▼).
+- O tema fica guardado entre visitas e, na primeira, segue a preferência do sistema.
+
 ## Estrutura
 
 ```
@@ -169,10 +199,12 @@ scripts/defasagem.py                  preco de realizacao, deducao de tributos e
 scripts/qualidade.py                  checagens de sanidade do dado de entrada
 scripts/tributos.json                 aliquotas ad rem, com vigencia e fonte
 scripts/email_semanal.py              montagem e envio do e-mail
+tests/                                suite de testes (pytest)
 .github/workflows/atualizar-ppi.yml   coleta diaria e e-mail semanal
+.github/workflows/ci.yml              lint e testes a cada push
 docs/index.html                       dashboard (pagina unica, Chart.js via CDN)
 docs/data/ppi.json                    serie completa do PPI
-docs/data/defasagem.json              serie pareada PPI x realizacao
+docs/data/defasagem.json              serie pareada PPI x realizacao + resumo da conferencia
 docs/data/defasagem.csv               mesma serie em formato longo
 docs/data/qualidade.json              achados das checagens de sanidade
 docs/data/meta.json                   metadados da ultima execucao
@@ -220,10 +252,13 @@ python scripts/email_semanal.py          # sem secrets, gera docs/_email_previa.
 python -m http.server 8000 --directory docs
 ```
 
+## Licença
+
+Código sob [MIT](LICENSE). Os dados são da ANP e seguem as regras de uso da própria agência;
+este repositório apenas coleta, organiza e visualiza o que já é público.
+
 ## Fontes
 
 - ANP — [Preços de Paridade de Importação](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-paridade-de-importacao)
 - ANP — [Preços de produtores e importadores de derivados de petróleo e biodiesel](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel)
 - ANP — [Síntese Semanal de Preços dos Combustíveis](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis)
-
-Dados públicos; este repositório apenas coleta, organiza e visualiza.
