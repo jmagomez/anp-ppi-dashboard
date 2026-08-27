@@ -224,6 +224,24 @@
    ]
   }
  },
+ "validacao_resumo": {
+  "edicao_sintese": "13/2026",
+  "n_pontos": 15,
+  "erro_max_pct": 0.12,
+  "erro_medio_pct": 0.035,
+  "produtos": [
+   "diesel",
+   "gasolina",
+   "glp"
+  ],
+  "semana_de": "2026-02-23",
+  "semana_ate": "2026-03-16",
+  "sem_conferencia": [
+   "qav"
+  ],
+  "pontos_ausentes": [],
+  "natureza": "Teste de regressao contra pontos fixos da Sintese Semanal, nao validacao continua da semana mais recente: a ANP publica a Sintese so em PDF."
+ },
  "links": {
   "sintese": {
    "url": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis",
