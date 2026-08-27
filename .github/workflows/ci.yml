@@ -1,0 +1,52 @@
+name: CI
+
+# Ate agora um erro de sintaxe em scripts/ so aparecia as 8h da manha, na
+# execucao agendada. Este workflow move a descoberta para o push.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      # Commit de dado nao muda codigo; rodar a suite neles seria so ruido.
+      - "docs/data/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          pip install pytest ruff
+
+      # So erros reais: sintaxe, nome indefinido, import morto. Um CI que
+      # reclama de estilo no primeiro dia e um CI que todos aprendem a ignorar.
+      - name: Lint
+        run: ruff check --select E9,F scripts tests
+
+      - name: Testes
+        run: pytest tests -q
+
+      # Um JSON corrompido em docs/data derruba o dashboard em silencio: o
+      # fetch falha e a pagina fica presa no "Carregando dados da ANP".
+      - name: Conferir os JSON publicados
+        run: python -c "import glob,json;[json.load(open(f,encoding='utf-8')) for f in glob.glob('docs/data/*.json')];print('JSON publicados: ok')"
