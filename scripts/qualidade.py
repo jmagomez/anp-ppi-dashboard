@@ -37,6 +37,17 @@ RESIDUO_ACUSA = 0.5     # |salto + d_taxa| / |d_taxa| abaixo disso acusa erro
 RESIDUO_INCONCLUSIVO = 2.0  # acima disso o mercado se moveu demais para concluir
 
 
+def hoje_br() -> date:
+    """Data corrente em Brasilia.
+
+    O runner do GitHub roda em UTC: na execucao de segunda as 23:00 UTC o
+    date.today() ja e terca, enquanto o resto do pipeline carimba tudo em BRT.
+    Duas nocoes de "hoje" no mesmo processo sempre acabam divergindo em algum
+    caso de borda.
+    """
+    return datetime.now(BR_TZ).date()
+
+
 def _mean(vals):
     v = [x for x in vals if x is not None]
     return sum(v) / len(v) if v else None
@@ -76,11 +87,16 @@ class Achados:
     def info(self, *a):
         self.add("info", *a)
 
+    def codigos(self, nivel=None):
+        return [i["codigo"] for i in self.itens if nivel is None or i["nivel"] == nivel]
+
 
 # --------------------------------------------------------------------------- #
 # checagens sobre o PPI
 # --------------------------------------------------------------------------- #
-def checar_ppi(products: dict, anterior: dict | None, ach: Achados) -> None:
+def checar_ppi(products: dict, anterior: dict | None, ach: Achados,
+               hoje: date | None = None) -> None:
+    hoje = hoje or hoje_br()
     ant_prod = (anterior or {}).get("products", {})
     parados = []
 
@@ -131,7 +147,7 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados) -> None:
                 f"{', '.join(_dbr(d) for d in dup[:5])}."
             )
 
-        limite = date.today() - timedelta(days=365)
+        limite = hoje - timedelta(days=365)
         recentes = []
         for a, b in zip(weeks, weeks[1:]):
             fim = date.fromisoformat(b["end"])
@@ -210,7 +226,13 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados) -> None:
 # --------------------------------------------------------------------------- #
 # degrau artificial na virada de aliquota
 # --------------------------------------------------------------------------- #
-def checar_degraus(out_dir: Path, ach: Achados) -> list:
+def total_faixa(f: dict) -> float:
+    return round(float(f["total"]) if "total" in f
+                 else f.get("pis", 0) + f.get("cofins", 0) + f.get("cide", 0), 6)
+
+
+def checar_degraus(out_dir: Path, ach: Achados,
+                   defas: dict | None = None, cfg: dict | None = None) -> list:
     """Procura a assinatura de aliquota errada na virada de faixa.
 
     Se aplicamos a aliquota nova quando a antiga ainda valia, o preco de
@@ -224,19 +246,19 @@ def checar_degraus(out_dir: Path, ach: Achados) -> list:
     Muito acima de 1, o mercado se moveu tanto no periodo que o teste nao
     consegue concluir nada -- e isso e dito, em vez de virar um falso positivo.
     E a unica conferencia disponivel para o QAV, que a Sintese nao cobre.
+
+    defas e cfg podem ser injetados; sem eles, sao lidos do disco.
     """
     degraus = []
-    try:
-        with open(out_dir / "defasagem.json", encoding="utf-8") as fh:
-            defas = json.load(fh)
-        with open(Path(__file__).resolve().parent / "tributos.json", encoding="utf-8") as fh:
-            cfg = json.load(fh)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return degraus
-
-    def total(f):
-        return round(float(f["total"]) if "total" in f
-                     else f.get("pis", 0) + f.get("cofins", 0) + f.get("cide", 0), 6)
+    if defas is None or cfg is None:
+        try:
+            with open(out_dir / "defasagem.json", encoding="utf-8") as fh:
+                defas = json.load(fh)
+            with open(Path(__file__).resolve().parent / "tributos.json",
+                      encoding="utf-8") as fh:
+                cfg = json.load(fh)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return degraus
 
     por_produto = {}
     for f in cfg["faixas"]:
@@ -252,7 +274,7 @@ def checar_degraus(out_dir: Path, ach: Achados) -> list:
 
         for anterior, atual in zip(faixas, faixas[1:]):
             corte = atual["de"]
-            d_taxa = total(atual) - total(anterior)
+            d_taxa = total_faixa(atual) - total_faixa(anterior)
             if abs(d_taxa) < 1e-6:
                 continue
 
@@ -273,7 +295,7 @@ def checar_degraus(out_dir: Path, ach: Achados) -> list:
             razao = residuo / abs(d_taxa)
             reg = {
                 "produto": key, "label": label, "corte": corte,
-                "taxa_antes": total(anterior), "taxa_depois": total(atual),
+                "taxa_antes": total_faixa(anterior), "taxa_depois": total_faixa(atual),
                 "mudanca_taxa": round(d_taxa, 6),
                 "salto_defasagem": round(salto, 6),
                 "residuo": round(residuo, 6),
