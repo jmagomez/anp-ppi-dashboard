@@ -83,6 +83,13 @@ MATCH = {
 
 # Valores de REALIZACAO publicados pela ANP na Sintese Semanal de Precos,
 # edicao 13/2026. Usados para conferir base tributaria e ordem de grandeza.
+#
+# LIMITE DESTA CONFERENCIA, dito aqui para nao ser esquecido: sao pontos fixos
+# de marco de 2026. Ela e um teste de regressao contra um instante conhecido --
+# pega aliquota errada e erro de pareamento -- e NAO uma validacao continua do
+# dado mais recente. Para isso seria preciso ler a Sintese de cada semana, que
+# a ANP publica so em PDF. O QAV nao aparece porque a Sintese nao o cobre.
+#
 # chave -> {segunda-feira da semana ISO: valor}
 SINTESE_REF = {
     "gasolina": {"2026-02-23": 2.70, "2026-03-02": 2.85,
@@ -97,6 +104,7 @@ SINTESE_PPI_REF = {
     "diesel": {"2026-03-16": 6.01},
     "glp": {"2026-03-16": 48.02},
 }
+SINTESE_EDICAO = "13/2026"
 
 
 def semana_chave(iso: str) -> str:
@@ -155,8 +163,8 @@ def as_number(v):
 # --------------------------------------------------------------------------- #
 # tributos
 # --------------------------------------------------------------------------- #
-def carregar_tributos() -> dict:
-    path = Path(__file__).resolve().parent / "tributos.json"
+def carregar_tributos(path: Path | None = None) -> dict:
+    path = path or Path(__file__).resolve().parent / "tributos.json"
     with open(path, encoding="utf-8") as fh:
         cfg = json.load(fh)
     faixas = {}
@@ -165,9 +173,10 @@ def carregar_tributos() -> dict:
             total = round(float(f["total"]), 6)
         else:
             total = round(f.get("pis", 0) + f.get("cofins", 0) + f.get("cide", 0), 6)
-        faixas.setdefault(f["produto"], []).append(
-            {"de": f["de"], "ate": f.get("ate"), "total": total, "fonte": f.get("fonte")}
-        )
+        faixas.setdefault(f["produto"], []).append({
+            "de": f["de"], "ate": f.get("ate"), "total": total,
+            "fonte": f.get("fonte"), "presumido": bool(f.get("presumido")),
+        })
     for v in faixas.values():
         v.sort(key=lambda x: x["de"])
     return {"inicio_serie": cfg["inicio_serie"], "faixas": faixas}
@@ -455,7 +464,54 @@ def validar(data: dict, raw: dict, trib: dict) -> dict:
     return res
 
 
-def write_outputs(data: dict, trib: dict, out_dir: Path) -> None:
+def resumo_validacao(val: dict) -> dict:
+    """Agrega a conferencia num punhado de numeros publicaveis.
+
+    Existe porque o dashboard e o README traziam "erro maximo de 0,12%" como
+    texto fixo. O numero estava certo no dia em que foi escrito e ninguem o
+    recalculava -- uma afirmacao de verificacao que nao e reverificada envelhece
+    mal e ninguem percebe. Agora o painel le daqui.
+
+    Devolve tambem o que a conferencia NAO cobre, que e a parte que o texto
+    fixo escondia: sao pontos de uma edicao especifica da Sintese, nao uma
+    validacao da semana corrente.
+    """
+    erros, semanas, produtos, faltando = [], set(), set(), []
+    for key, v in (val or {}).items():
+        if not isinstance(v, dict) or "realizacao" not in v:
+            faltando.append(key)
+            continue
+        houve = False
+        for item in v.get("realizacao", []) + v.get("ppi", []):
+            e = item.get("erro_pct")
+            if isinstance(e, (int, float)):
+                erros.append(abs(e))
+                semanas.add(item["semana"])
+                houve = True
+            elif item.get("status"):
+                faltando.append(f"{key}/{item['semana']}")
+        if houve:
+            produtos.add(key)
+
+    return {
+        "edicao_sintese": SINTESE_EDICAO,
+        "n_pontos": len(erros),
+        "erro_max_pct": round(max(erros), 2) if erros else None,
+        "erro_medio_pct": round(sum(erros) / len(erros), 3) if erros else None,
+        "produtos": sorted(produtos),
+        "semana_de": min(semanas) if semanas else None,
+        "semana_ate": max(semanas) if semanas else None,
+        "sem_conferencia": sorted(set(MATCH) - produtos),
+        "pontos_ausentes": faltando,
+        "natureza": (
+            "Teste de regressao contra pontos fixos da Sintese Semanal, nao "
+            "validacao continua da semana mais recente: a ANP publica a Sintese "
+            "so em PDF."
+        ),
+    }
+
+
+def write_outputs(data: dict, trib: dict, out_dir: Path, resumo: dict | None = None) -> None:
     payload = {
         "generated_at": datetime.now(BR_TZ).isoformat(timespec="seconds"),
         "source_file": PPIDP_URL,
@@ -472,6 +528,7 @@ def write_outputs(data: dict, trib: dict, out_dir: Path) -> None:
             "abaixo da paridade de importacao."
         ),
         "order": [k for k in MATCH if k in data],
+        "validacao": resumo,
         "avisos_cobertura": avisos_cobertura(data, trib, datetime.now(BR_TZ).date()),
         "products": data,
     }
@@ -504,15 +561,24 @@ def run(products: dict, out_dir: Path) -> None:
         data, checks = build(products, raw, trib)
         debug["inicio_serie"] = trib["inicio_serie"]
         debug["checagens"] = checks
-        debug["validacao_sintese"] = validar(data, raw, trib)
+        val = validar(data, raw, trib)
+        resumo = resumo_validacao(val)
+        debug["validacao_sintese"] = val
+        debug["validacao_resumo"] = resumo
         debug["links"] = checar_links()
         avisos = avisos_cobertura(data, trib, datetime.now(BR_TZ).date())
         debug["avisos_cobertura"] = avisos
         for a in avisos:
             print(f"[ppidp] {a['nivel'].upper()}: {a['texto']}")
 
+        if resumo["erro_max_pct"] is not None:
+            print(f"[ppidp] conferencia: {resumo['n_pontos']} pontos da Sintese "
+                  f"{resumo['edicao_sintese']}, erro maximo {resumo['erro_max_pct']:.2f}%"
+                  + (f", sem conferencia para {', '.join(resumo['sem_conferencia'])}"
+                     if resumo["sem_conferencia"] else ""))
+
         if data:
-            write_outputs(data, trib, out_dir)
+            write_outputs(data, trib, out_dir, resumo)
             for k, c in checks.items():
                 if c.get("status") == "ok":
                     print(f"[ppidp] {k:<9} {c['semanas']:>4} semanas | ate {c['ultima']} "
