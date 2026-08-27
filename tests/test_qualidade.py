@@ -18,12 +18,15 @@ def semana(fim, valores):
 
 
 def produto(label="Gasolina A", weeks=None, locations=None):
-    return {
-        "label": label,
-        "weeks": weeks or [semana("2026-08-14", [3.0, 3.1]),
-                           semana("2026-08-21", [3.05, 3.15])],
-        "locations": locations or ["Santos", "Paulinia"],
-    }
+    # `weeks or [...]` faria uma lista vazia cair no default e o teste de serie
+    # vazia passaria por acidente. O sentinela None e o unico jeito de dizer
+    # "nao informei" sem confundir com "informei vazio".
+    if weeks is None:
+        weeks = [semana("2026-08-14", [3.0, 3.1]),
+                 semana("2026-08-21", [3.05, 3.15])]
+    if locations is None:
+        locations = ["Santos", "Paulinia"]
+    return {"label": label, "weeks": weeks, "locations": locations}
 
 
 HOJE = date(2026, 8, 27)
