@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-09-13T11:43:45-03:00",
- "comparado_com": "2026-09-12T10:47:46-03:00",
+ "generated_at": "2026-09-14T22:15:04-03:00",
+ "comparado_com": "2026-09-13T11:43:37-03:00",
  "limiares": {
   "variacao_aviso_pct": 20.0,
   "variacao_erro_pct": 60.0,
@@ -11,7 +11,7 @@
  "resumo": {
   "erro": 0,
   "aviso": 1,
-  "info": 1
+  "info": 0
  },
  "achados": [
   {
@@ -20,13 +20,6 @@
    "produto": "qav",
    "label": "QAV",
    "texto": "QAV: a aliquota vigente desde 03/08/2026 e presumida, nao confirmada em fonte oficial. O teste de continuidade e inconclusivo: o preco se moveu 7 vezes mais que a mudanca de aliquota no periodo, entao ele nao confirma nem desmente a presuncao."
-  },
-  {
-   "nivel": "info",
-   "codigo": "sem_semana_nova",
-   "produto": null,
-   "label": null,
-   "texto": "A ANP nao publicou semana nova desde 04/09/2026 (todos os produtos). O painel segue mostrando a ultima semana disponivel."
   }
  ],
  "degraus": [
@@ -65,11 +58,11 @@
    "taxa_antes": 0.0,
    "taxa_depois": 0.0712,
    "mudanca_taxa": 0.0712,
-   "salto_defasagem": -0.601429,
-   "residuo": 0.530229,
-   "razao_residuo": 7.447,
+   "salto_defasagem": -0.562344,
+   "residuo": 0.491144,
+   "razao_residuo": 6.898,
    "semanas_antes": 6,
-   "semanas_depois": 4,
+   "semanas_depois": 5,
    "presumida": true
   }
  ]
