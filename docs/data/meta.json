@@ -1,31 +1,31 @@
 {
-  "generated_at": "2026-10-04T12:31:59-03:00",
-  "latest_week_end": "2026-09-25",
-  "source_sha256": "b3380997bf191c4bb303c56c8e6389e2e736ac1a1d6a4421669d184728920cdd",
+  "generated_at": "2026-10-05T16:25:13-03:00",
+  "latest_week_end": "2026-10-02",
+  "source_sha256": "b066be04b98f4566f4e1d123549c528ac88e108d75cbf68c7214e5f7dfa29062",
   "products": {
     "gasolina": {
-      "weeks": 412,
+      "weeks": 413,
       "locations": 16,
       "unit": "R$/litro",
-      "last_week": "21/09/2026 A 25/09/2026"
+      "last_week": "28/09/2026 A 02/10/2026"
     },
     "diesel": {
-      "weeks": 412,
+      "weeks": 413,
       "locations": 16,
       "unit": "R$/litro",
-      "last_week": "21/09/2026 A 25/09/2026"
+      "last_week": "28/09/2026 A 02/10/2026"
     },
     "qav": {
-      "weeks": 412,
+      "weeks": 413,
       "locations": 16,
       "unit": "R$/litro",
-      "last_week": "21/09/2026 A 25/09/2026"
+      "last_week": "28/09/2026 A 02/10/2026"
     },
     "glp": {
-      "weeks": 412,
+      "weeks": 413,
       "locations": 2,
       "unit": "R$/13kg",
-      "last_week": "21/09/2026 A 25/09/2026"
+      "last_week": "28/09/2026 A 02/10/2026"
     }
   }
 }
