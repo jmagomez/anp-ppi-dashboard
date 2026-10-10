@@ -1,7 +1,7 @@
 {
  "source_file": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/ppidp/precos-medios-ponderados-semanais-2013.xls",
  "source_page": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel",
- "linhas": 11529,
+ "linhas": 11544,
  "produtos_encontrados": [
   "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
   "Asfalto Diluído de Petróleo de Cura Rápida 250 (R$/kg)",
@@ -29,22 +29,22 @@
   "gasolina": {
    "status": "ok",
    "produto": "Gasolina A Comum (R$/litro)",
-   "semanas": 160,
+   "semanas": 161,
    "semanas_sem_cobertura": 252,
    "semanas_sem_faixa": 0,
    "cobertura": {
     "sem_faixa": 0,
     "sem_faixa_recente": 0
    },
-   "ultima": "2026-09-25",
-   "ppi": 3.852448,
-   "realizacao": 2.70314,
-   "defasagem_pct": -29.8332
+   "ultima": "2026-10-02",
+   "ppi": 3.84218,
+   "realizacao": 2.63404,
+   "defasagem_pct": -31.4441
   },
   "diesel": {
    "status": "ok",
    "produto": "Óleo Diesel S-10 (R$/litro)",
-   "semanas": 160,
+   "semanas": 161,
    "semanas_sem_cobertura": 252,
    "semanas_sem_faixa": 0,
    "cobertura": {
@@ -52,15 +52,15 @@
     "sem_faixa_recente": 0,
     "vigencia_ate": "2026-12-31"
    },
-   "ultima": "2026-09-25",
-   "ppi": 6.628751,
-   "realizacao": 4.14954,
-   "defasagem_pct": -37.4009
+   "ultima": "2026-10-02",
+   "ppi": 6.710613,
+   "realizacao": 3.84788,
+   "defasagem_pct": -42.6598
   },
   "qav": {
    "status": "ok",
    "produto": "Querosene de Aviação - QAV (R$/litro)",
-   "semanas": 159,
+   "semanas": 160,
    "semanas_sem_cobertura": 253,
    "semanas_sem_faixa": 1,
    "cobertura": {
@@ -69,25 +69,25 @@
     "de": "2026-04-06",
     "ate": "2026-04-06"
    },
-   "ultima": "2026-09-25",
-   "ppi": 6.645621,
-   "realizacao": 5.61669,
-   "defasagem_pct": -15.4828
+   "ultima": "2026-10-02",
+   "ppi": 6.867676,
+   "realizacao": 5.9684,
+   "defasagem_pct": -13.0943
   },
   "glp": {
    "status": "ok",
    "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)",
-   "semanas": 160,
+   "semanas": 161,
    "semanas_sem_cobertura": 252,
    "semanas_sem_faixa": 0,
    "cobertura": {
     "sem_faixa": 0,
     "sem_faixa_recente": 0
    },
-   "ultima": "2026-09-25",
-   "ppi": 49.166,
-   "realizacao": 36.01559,
-   "defasagem_pct": -26.747
+   "ultima": "2026-10-02",
+   "ppi": 51.376,
+   "realizacao": 36.27104,
+   "defasagem_pct": -29.4008
   }
  },
  "validacao_sintese": {
