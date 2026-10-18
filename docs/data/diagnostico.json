@@ -1,0 +1,244 @@
+{
+ "source_file": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/ppidp/precos-medios-ponderados-semanais-2013.xls",
+ "source_page": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel",
+ "linhas": 11559,
+ "produtos_encontrados": [
+  "Asfalto Diluído de Petróleo de Cura Média 30 (R$/kg)",
+  "Asfalto Diluído de Petróleo de Cura Rápida 250 (R$/kg)",
+  "Biodiesel B-100 (R$/litro)",
+  "Cimento Asfáltico de Petróleo 30 45 (R$/kg)",
+  "Cimento Asfáltico de Petróleo 50 70 (R$/kg)",
+  "Gasolina A Comum (R$/litro)",
+  "Gasolina A Premium (R$/litro)",
+  "Gás Liquefeito de Petróleo - GLP (R$/kg)",
+  "Nafta Petroquímica (R$/kg)",
+  "Querosene de Aviação - QAV (R$/litro)",
+  "Óleo Combustível A1 (R$/kg)",
+  "Óleo Combustível A2 (R$/kg)",
+  "Óleo Combustível B1 (R$/kg)",
+  "Óleo Combustível B2 (R$/kg)",
+  "Óleo Diesel Marítimo DMA-MGO (R$/litro)",
+  "Óleo Diesel Não Rodoviário (R$/litro)",
+  "Óleo Diesel S-10 (R$/litro)",
+  "Óleo Diesel S-1800 (R$/litro)",
+  "Óleo Diesel S-500 (R$/litro)",
+  "Óleo Diesel² (R$/litro)"
+ ],
+ "inicio_serie": "2023-09-04",
+ "checagens": {
+  "gasolina": {
+   "status": "ok",
+   "produto": "Gasolina A Comum (R$/litro)",
+   "semanas": 162,
+   "semanas_sem_cobertura": 252,
+   "semanas_sem_faixa": 0,
+   "cobertura": {
+    "sem_faixa": 0,
+    "sem_faixa_recente": 0
+   },
+   "ultima": "2026-10-09",
+   "ppi": 3.746356,
+   "realizacao": 2.63611,
+   "defasagem_pct": -29.6354
+  },
+  "diesel": {
+   "status": "ok",
+   "produto": "Óleo Diesel S-10 (R$/litro)",
+   "semanas": 162,
+   "semanas_sem_cobertura": 252,
+   "semanas_sem_faixa": 0,
+   "cobertura": {
+    "sem_faixa": 0,
+    "sem_faixa_recente": 0,
+    "vigencia_ate": "2026-12-31"
+   },
+   "ultima": "2026-10-09",
+   "ppi": 6.43243,
+   "realizacao": 3.89808,
+   "defasagem_pct": -39.3996
+  },
+  "qav": {
+   "status": "ok",
+   "produto": "Querosene de Aviação - QAV (R$/litro)",
+   "semanas": 161,
+   "semanas_sem_cobertura": 253,
+   "semanas_sem_faixa": 1,
+   "cobertura": {
+    "sem_faixa": 1,
+    "sem_faixa_recente": 0,
+    "de": "2026-04-06",
+    "ate": "2026-04-06"
+   },
+   "ultima": "2026-10-09",
+   "ppi": 6.54659,
+   "realizacao": 6.20929,
+   "defasagem_pct": -5.1523
+  },
+  "glp": {
+   "status": "ok",
+   "produto": "Gás Liquefeito de Petróleo - GLP (R$/kg)",
+   "semanas": 162,
+   "semanas_sem_cobertura": 252,
+   "semanas_sem_faixa": 0,
+   "cobertura": {
+    "sem_faixa": 0,
+    "sem_faixa_recente": 0
+   },
+   "ultima": "2026-10-09",
+   "ppi": 51.987,
+   "realizacao": 36.09008,
+   "defasagem_pct": -30.5786
+  }
+ },
+ "validacao_sintese": {
+  "gasolina": {
+   "realizacao": [
+    {
+     "semana": "2026-02-23",
+     "anp": 2.7,
+     "calculado": 2.6987,
+     "erro_pct": -0.05,
+     "tributo_aplicado": 0.8925,
+     "tributo_implicito": 0.8912
+    },
+    {
+     "semana": "2026-03-02",
+     "anp": 2.85,
+     "calculado": 2.8533,
+     "erro_pct": 0.12,
+     "tributo_aplicado": 0.8925,
+     "tributo_implicito": 0.8958
+    },
+    {
+     "semana": "2026-03-09",
+     "anp": 2.68,
+     "calculado": 2.6782,
+     "erro_pct": -0.07,
+     "tributo_aplicado": 0.8925,
+     "tributo_implicito": 0.8907
+    },
+    {
+     "semana": "2026-03-16",
+     "anp": 3.58,
+     "calculado": 3.5811,
+     "erro_pct": 0.03,
+     "tributo_aplicado": 0.8925,
+     "tributo_implicito": 0.8936
+    }
+   ],
+   "ppi": [
+    {
+     "semana": "2026-03-16",
+     "anp": 3.92,
+     "calculado": 3.920199,
+     "erro_pct": 0.01
+    }
+   ]
+  },
+  "diesel": {
+   "realizacao": [
+    {
+     "semana": "2026-02-23",
+     "anp": 3.59,
+     "calculado": 3.5902,
+     "erro_pct": 0.01,
+     "tributo_aplicado": 0.355,
+     "tributo_implicito": 0.3552
+    },
+    {
+     "semana": "2026-03-02",
+     "anp": 4.71,
+     "calculado": 4.7076,
+     "erro_pct": -0.05,
+     "tributo_aplicado": 0.0,
+     "tributo_implicito": -0.0024
+    },
+    {
+     "semana": "2026-03-09",
+     "anp": 5.36,
+     "calculado": 5.3562,
+     "erro_pct": -0.07,
+     "tributo_aplicado": 0.0,
+     "tributo_implicito": -0.0038
+    },
+    {
+     "semana": "2026-03-16",
+     "anp": 5.29,
+     "calculado": 5.2929,
+     "erro_pct": 0.06,
+     "tributo_aplicado": 0.0,
+     "tributo_implicito": 0.0029
+    }
+   ],
+   "ppi": [
+    {
+     "semana": "2026-03-16",
+     "anp": 6.01,
+     "calculado": 6.008361,
+     "erro_pct": -0.03
+    }
+   ]
+  },
+  "glp": {
+   "realizacao": [
+    {
+     "semana": "2026-02-23",
+     "anp": 36.71,
+     "calculado": 36.7077,
+     "erro_pct": -0.01,
+     "tributo_aplicado": 0.0,
+     "tributo_implicito": -0.0002
+    },
+    {
+     "semana": "2026-03-02",
+     "anp": 39.03,
+     "calculado": 39.032,
+     "erro_pct": 0.01,
+     "tributo_aplicado": 0.0,
+     "tributo_implicito": 0.0002
+    },
+    {
+     "semana": "2026-03-09",
+     "anp": 36.02,
+     "calculado": 36.0212,
+     "erro_pct": 0.0,
+     "tributo_aplicado": 0.0,
+     "tributo_implicito": 0.0001
+    },
+    {
+     "semana": "2026-03-16",
+     "anp": 35.91,
+     "calculado": 35.9148,
+     "erro_pct": 0.01,
+     "tributo_aplicado": 0.0,
+     "tributo_implicito": 0.0004
+    }
+   ],
+   "ppi": [
+    {
+     "semana": "2026-03-16",
+     "anp": 48.02,
+     "calculado": 48.022,
+     "erro_pct": 0.0
+    }
+   ]
+  }
+ },
+ "links": {
+  "sintese": {
+   "url": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/sintese-semanal-do-comportamento-dos-precos-dos-combustiveis",
+   "status": 200,
+   "ok": true
+  },
+  "sintese_fallback": {
+   "url": "https://www.gov.br/anp/pt-br/centrais-de-conteudo/publicacoes/sinteses",
+   "status": 200,
+   "ok": true
+  },
+  "ppidp": {
+   "url": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-de-produtores-e-importadores-de-derivados-de-petroleo-e-biodiesel",
+   "status": 200,
+   "ok": true
+  }
+ }
+}
