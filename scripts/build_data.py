@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Baixa a planilha de Precos de Paridade de Importacao (PPI) da ANP,
-normaliza as 4 abas semanais e gera os artefatos consumidos pelo dashboard.
+Coleta o PPI da ANP e orquestra o pipeline.
 
-Saidas (em docs/data/):
-  ppi.json              -> dataset completo usado pelo dashboard
-  ppi_<produto>.csv     -> serie longa por produto
-  ppi_long.csv          -> serie longa consolidada dos 4 produtos
-  meta.json             -> metadados da ultima execucao
+Baixa a planilha de Preços de Paridade de Importação, normaliza as 4 abas
+semanais e chama, na ordem, o cálculo da defasagem e as checagens de sanidade.
+
+Saídas (em docs/data/):
+  ppi.json          dataset completo consumido pelo dashboard
+  ppi_long.csv      série longa dos 4 produtos
+  meta.json         metadados da última execução
 
 Fonte: https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/
        precos/precos-de-paridade-de-importacao
@@ -15,18 +16,18 @@ Fonte: https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/
 
 from __future__ import annotations
 
-import csv
 import hashlib
 import io
 import json
 import re
-import sys
-import unicodedata
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
-import requests
 from openpyxl import load_workbook
+
+from comum import (
+    agora_br, as_number, escrever_csv, escrever_json, limpar, norm, baixar,
+)
 
 XLSX_URL = (
     "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
@@ -44,7 +45,7 @@ RAW_DIR = ROOT / "data_raw"
 DATE_RE = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
 HEADER_LABELS = {"data", "semana"}
 
-# Aba na planilha -> (chave interna, rotulo curto)
+# Aba na planilha -> (chave interna, rótulo curto)
 SHEETS = [
     ("Gasolina R$ semanal", "gasolina", "Gasolina A"),
     ("Diesel R$ semanal", "diesel", "Diesel A S10"),
@@ -52,72 +53,12 @@ SHEETS = [
     ("GLP R$ kg semanal", "glp", "GLP"),
 ]
 
-BR_TZ = timezone(timedelta(hours=-3))
-
-
-# --------------------------------------------------------------------------- #
-# utilidades
-# --------------------------------------------------------------------------- #
-def norm(text) -> str:
-    """Minusculo, sem acentos e sem espacos duplicados."""
-    if text is None:
-        return ""
-    s = str(text).replace("\xa0", " ").strip()
-    s = unicodedata.normalize("NFKD", s)
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", s).lower()
-
-
-def clean(text) -> str:
-    if text is None:
-        return ""
-    return re.sub(r"\s+", " ", str(text).replace("\xa0", " ")).strip()
-
-
-def as_number(value):
-    """Converte celula em float, tolerando texto com virgula decimal e '-'."""
-    if value is None or isinstance(value, bool):
-        return None
-    if isinstance(value, (int, float)):
-        f = float(value)
-        return None if f != f else f
-    s = str(value).strip()
-    if s in {"", "-", "--", "n/d", "N/D", "ND"}:
-        return None
-    s = s.replace("R$", "").replace(" ", "")
-    if "," in s:
-        s = s.replace(".", "").replace(",", ".")
-    try:
-        f = float(s)
-    except ValueError:
-        return None
-    return None if f != f else f
-
-
-def download(url: str) -> bytes:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; anp-ppi-dashboard/1.0)",
-        "Accept": "*/*",
-    }
-    last = None
-    for attempt in range(4):
-        try:
-            r = requests.get(url, headers=headers, timeout=120)
-            r.raise_for_status()
-            if len(r.content) < 10000:
-                raise RuntimeError(f"arquivo truncado: {len(r.content)} bytes")
-            return r.content
-        except Exception as exc:  # noqa: BLE001
-            last = exc
-            print(f"  tentativa {attempt + 1} falhou: {exc}", file=sys.stderr)
-    raise SystemExit(f"nao foi possivel baixar {url}: {last}")
-
 
 # --------------------------------------------------------------------------- #
 # parsing
 # --------------------------------------------------------------------------- #
 def find_header(rows):
-    """Linha de cabecalho ('Data' ou 'Semana') e indice da coluna de data."""
+    """Linha de cabeçalho ('Data' ou 'Semana') e índice da coluna de data."""
     for i, row in enumerate(rows[:15]):
         for j, cell in enumerate(row):
             if norm(cell) in HEADER_LABELS:
@@ -126,14 +67,14 @@ def find_header(rows):
 
 
 def read_locations(header_row, date_col: int):
-    """Terminais = celulas nao vazias apos a data, ate a primeira lacuna.
+    """Terminais = células não vazias após a data, até a primeira lacuna.
 
-    A ANP repete os mesmos terminais num segundo bloco (variacao % semanal),
+    A ANP repete os mesmos terminais num segundo bloco (variação % semanal),
     separado por uma coluna em branco; paramos na lacuna.
     """
     locations = []
     for j in range(date_col + 1, len(header_row)):
-        name = clean(header_row[j])
+        name = limpar(header_row[j])
         if not name:
             break
         locations.append({"col": j, "name": name})
@@ -143,11 +84,11 @@ def read_locations(header_row, date_col: int):
 
 
 def parse_period(raw):
-    """'05/11/2018 a 09/11/2018' -> (inicio ISO, fim ISO, rotulo)."""
+    """'05/11/2018 a 09/11/2018' -> (início ISO, fim ISO, rótulo)."""
     if isinstance(raw, datetime):
         iso = raw.date().isoformat()
         return iso, iso, raw.strftime("%d/%m/%Y")
-    label = clean(raw)
+    label = limpar(raw)
     matches = DATE_RE.findall(label)
     if not matches:
         return None
@@ -174,7 +115,7 @@ def parse_sheet(ws, key: str, fallback_label: str) -> dict:
         if idx < 0 or idx >= len(rows):
             return ""
         for cell in rows[idx]:
-            txt = clean(cell)
+            txt = limpar(cell)
             if txt and norm(txt) != "variacao % em relacao a semana anterior":
                 return txt
         return ""
@@ -182,7 +123,7 @@ def parse_sheet(ws, key: str, fallback_label: str) -> dict:
     title = first_text(0) or fallback_label
     unit_raw = first_text(1)
     m = re.search(r"(R\$\s*/\s*[^\s,;]+)", unit_raw)
-    unit = clean(m.group(1)) if m else (unit_raw or "R$")
+    unit = limpar(m.group(1)) if m else (unit_raw or "R$")
 
     weeks, seen = [], set()
     for row in rows[header_idx + 1:]:
@@ -219,26 +160,24 @@ def parse_sheet(ws, key: str, fallback_label: str) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-# saidas
+# saídas
 # --------------------------------------------------------------------------- #
-def write_csvs(products: dict):
-    consolidated = [
-        ("produto", "unidade", "semana_inicio", "semana_fim", "terminal", "preco")
-    ]
-    for key, p in products.items():
-        rows = [("semana_inicio", "semana_fim", "terminal", "preco")]
+def escrever_serie_longa(products: dict) -> bool:
+    """Um CSV só, com produto e unidade em coluna.
+
+    Havia também um CSV por produto -- 0,79 MB republicados a cada mudança de
+    dado, que ninguém lia: nem o dashboard, nem o README, nem os testes. O
+    ppi_long.csv é o superconjunto exato deles.
+    """
+    linhas = [("produto", "unidade", "semana_inicio", "semana_fim", "terminal", "preco")]
+    for p in products.values():
         for w in p["weeks"]:
-            for name, value in zip(p["locations"], w["v"]):
-                if value is None:
+            for name, valor in zip(p["locations"], w["v"]):
+                if valor is None:
                     continue
-                rows.append((w["start"], w["end"], name, f"{value:.6f}"))
-                consolidated.append(
-                    (p["label"], p["unit"], w["start"], w["end"], name, f"{value:.6f}")
-                )
-        with open(OUT_DIR / f"ppi_{key}.csv", "w", newline="", encoding="utf-8") as fh:
-            csv.writer(fh).writerows(rows)
-    with open(OUT_DIR / "ppi_long.csv", "w", newline="", encoding="utf-8") as fh:
-        csv.writer(fh).writerows(consolidated)
+                linhas.append((p["label"], p["unit"], w["start"], w["end"],
+                               name, f"{valor:.6f}"))
+    return escrever_csv(OUT_DIR / "ppi_long.csv", linhas)
 
 
 def main() -> int:
@@ -246,7 +185,7 @@ def main() -> int:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
 
     # Guardado antes de sobrescrever: as checagens de sanidade comparam a
-    # execucao atual com a anterior para pegar serie que encolhe ou retrocede.
+    # execução atual com a anterior para pegar série que encolhe ou retrocede.
     anterior = None
     _prev = OUT_DIR / "ppi.json"
     if _prev.exists():
@@ -257,7 +196,7 @@ def main() -> int:
             print(f"[qualidade] execucao anterior ilegivel, seguindo sem comparar: {exc}")
 
     print(f"Baixando {XLSX_URL}")
-    blob = download(XLSX_URL)
+    blob = baixar(XLSX_URL, minimo=10000)
     digest = hashlib.sha256(blob).hexdigest()
     print(f"  {len(blob):,} bytes | sha256 {digest[:16]}...")
     (RAW_DIR / "ppi.xlsx").write_bytes(blob)
@@ -269,10 +208,10 @@ def main() -> int:
     for sheet_name, key, label in SHEETS:
         if sheet_name not in set(wb.sheetnames):
             token = norm(label.split()[0])
-            candidates = [s for s in wb.sheetnames if token in norm(s)]
-            if not candidates:
+            candidatos = [s for s in wb.sheetnames if token in norm(s)]
+            if not candidatos:
                 raise SystemExit(f"aba '{sheet_name}' ausente na planilha da ANP")
-            sheet_name = candidates[0]
+            sheet_name = candidatos[0]
         products[key] = parse_sheet(wb[sheet_name], key, label)
         p = products[key]
         print(
@@ -281,56 +220,52 @@ def main() -> int:
         )
 
     latest = max(p["weeks"][-1]["end"] for p in products.values())
-    dataset = {
-        "generated_at": datetime.now(BR_TZ).isoformat(timespec="seconds"),
+    carimbo = agora_br().isoformat(timespec="seconds")
+
+    escreveu = escrever_json(OUT_DIR / "ppi.json", {
+        "generated_at": carimbo,
         "source_file": XLSX_URL,
         "source_page": PAGE_URL,
         "source_sha256": digest,
         "latest_week_end": latest,
         "order": [key for _, key, _ in SHEETS],
         "products": products,
-    }
+    })
 
-    with open(OUT_DIR / "ppi.json", "w", encoding="utf-8") as fh:
-        json.dump(dataset, fh, ensure_ascii=False, separators=(",", ":"))
+    escrever_json(OUT_DIR / "meta.json", {
+        "generated_at": carimbo,
+        "latest_week_end": latest,
+        "source_sha256": digest,
+        "products": {
+            k: {
+                "weeks": len(p["weeks"]),
+                "locations": len(p["locations"]),
+                "unit": p["unit"],
+                "last_week": p["weeks"][-1]["label"],
+            }
+            for k, p in products.items()
+        },
+    })
 
-    with open(OUT_DIR / "meta.json", "w", encoding="utf-8") as fh:
-        json.dump(
-            {
-                "generated_at": dataset["generated_at"],
-                "latest_week_end": latest,
-                "source_sha256": digest,
-                "products": {
-                    k: {
-                        "weeks": len(p["weeks"]),
-                        "locations": len(p["locations"]),
-                        "unit": p["unit"],
-                        "last_week": p["weeks"][-1]["label"],
-                    }
-                    for k, p in products.items()
-                },
-            },
-            fh,
-            ensure_ascii=False,
-            indent=2,
-        )
+    escrever_serie_longa(products)
+    print(f"[ppi] {'conteudo novo' if escreveu else 'sem mudanca desde a execucao anterior'}"
+          f" | ultima semana {latest}")
 
-    write_csvs(products)
-
+    # A defasagem devolve seus alertas em vez de publicá-los por conta própria:
+    # existe uma lista de alertas no projeto, e ela mora em qualidade.json.
+    alertas_defasagem = []
     try:
         import defasagem
-        defasagem.run(products, OUT_DIR)
+        alertas_defasagem = defasagem.run(products, OUT_DIR)
     except Exception as exc:  # noqa: BLE001
         print(f"[defasagem] etapa ignorada: {type(exc).__name__}: {exc}")
 
     try:
         import qualidade
-        qualidade.run(products, anterior, OUT_DIR)
+        qualidade.run(products, anterior, OUT_DIR, alertas_defasagem)
     except Exception as exc:  # noqa: BLE001
         print(f"[qualidade] etapa ignorada: {type(exc).__name__}: {exc}")
 
-    size = (OUT_DIR / "ppi.json").stat().st_size
-    print(f"OK -> docs/data/ppi.json ({size:,} bytes) | ultima semana {latest}")
     return 0
 
 
