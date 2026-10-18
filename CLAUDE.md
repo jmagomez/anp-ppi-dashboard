@@ -103,6 +103,15 @@ e o console sem erro.
   Para `.github/workflows/`, que a API do app não pode escrever, use o editor e
   **confira o resultado pela API depois** — ou apague e recrie o arquivo, que é o
   caminho que não duplica.
+- **Reescrever um arquivo inteiro pela API perde caractere invisível.** O `index.html`
+  usa **espaço inseparável** depois da seta (`▲`, `▼`) para o sinal não se separar do
+  número na quebra de linha. Numa reescrita ele virou espaço comum: nenhum teste pega,
+  o diff não mostra e o sintoma só apareceria em tela estreita. Vale para NBSP, hífen
+  não separável e aspas tipográficas.
+- **Confronte o blob depois de todo push.** `git hash-object <arquivo>` local contra o
+  `sha` que a API devolve. Igual, a transcrição foi fiel; diferente, há divergência
+  **mesmo quando o tamanho bate** — foi assim que o espaço inseparável apareceu, com
+  dois bytes trocados que se anulavam na contagem.
 - **`raw.githubusercontent.com` serve conteúdo velho por minutos.** Para conferir o que
   foi realmente commitado, use a API de contents ou fixe o SHA do commit.
 - **Dois-pontos seguido de espaço dentro de escalar YAML sem aspas quebra o parse.**
