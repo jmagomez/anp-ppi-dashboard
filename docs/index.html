@@ -150,7 +150,7 @@ footer div{margin-bottom:6px}
     <div class="badges">
       <span class="badge"><span class="dot"></span>PPI: <b id="b-week">—</b></span>
       <span class="badge" id="b-def-wrap" hidden><span class="dot lag"></span>Realização: <b id="b-def">—</b></span>
-      <span class="badge">Atualizado: <b id="b-updated">—</b></span>
+      <span class="badge" title="Quando este conteúdo foi gerado. O robô confere todo dia; a data só anda quando a ANP publica dado novo.">Dados de: <b id="b-updated">—</b></span>
       <button class="icon-btn" id="theme-btn" type="button">Tema claro</button>
     </div>
   </header>
@@ -305,7 +305,7 @@ function pfmt(v, d){
 }
 // Cor sozinha nao serve: ~8% dos homens nao distinguem vermelho de verde, e o
 // sinal da defasagem e o numero que mais importa na pagina.
-function seta(v){ return vazio(v) ? '' : (v>0 ? '▲ ' : (v<0 ? '▼ ' : '')); }
+function seta(v){ return vazio(v) ? '' : (v>0 ? '▲ ' : (v<0 ? '▼ ' : '')); }
 function sinal(v, d){ return seta(v) + pfmt(v, d); }
 function dfmt(iso){ const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 function dias(a, b){
@@ -497,12 +497,12 @@ function renderCabecalho(){
 /* ------------------------- qualidade ------------------------- */
 function renderQualidade(){
   const card = $('#card-qual');
-  const itens = (QUAL && QUAL.achados) ? QUAL.achados : [];
+  const itens = (QUAL && QUAL.alertas) ? QUAL.alertas : [];
   if(!itens.length){ card.hidden = true; return; }
   card.hidden = false;
   const r = QUAL.resumo || {};
   $('#qual-hint').textContent =
-    `${r.erro||0} erro(s), ${r.aviso||0} aviso(s) e ${r.info||0} nota(s) nas checagens sobre o que a ANP publicou.`;
+    `${r.erro||0} erro(s), ${r.aviso||0} aviso(s) e ${r.info||0} nota(s) — integridade do dado da ANP e cobertura de alíquotas.`;
   $('#qual').innerHTML = itens.map(a => `
     <div class="qi ${a.nivel}">
       <span class="tag">${a.nivel}</span>
@@ -767,14 +767,9 @@ function renderCharts(){
 
 function renderMetodologia(){
   if(!DEF){ $('#meto').textContent = 'Série de defasagem indisponível nesta execução.'; return; }
-  // Alíquota vencida ou prestes a vencer: sem este aviso o produto encolhe no
-  // gráfico e nada na tela explica por quê.
-  const av = (DEF.avisos_cobertura || []);
-  const cor = av.some(a => a.nivel === 'erro') ? 'var(--up)' : 'var(--dim)';
-  const box = !av.length ? '' :
-    `<div style="border-left:2px solid ${cor};background:var(--panel2);border-radius:0 8px 8px 0;` +
-    `padding:10px 12px;margin-bottom:12px"><b>Cobertura de alíquotas.</b><br>` +
-    av.map(a => a.texto).join('<br>') + `</div>`;
+  // Os alertas de cobertura de alíquota ficavam repetidos aqui, num segundo
+  // quadro com outro formato. Vivem agora no painel "Qualidade do dado", junto
+  // com as checagens de integridade: uma lista só, um lugar só.
 
   // O numero da conferencia vem do pipeline. Antes era texto fixo: continuaria
   // afirmando "0,12%" mesmo que a ANP revisasse um valor.
@@ -795,7 +790,7 @@ function renderMetodologia(){
          + `<br><span style="color:var(--dim)">${v.natureza}</span>`;
   }
 
-  $('#meto').innerHTML = box +
+  $('#meto').innerHTML =
     `<b>Como é calculado.</b> A defasagem é o preço de realização menos o PPI, na mesma base tributária ` +
     `e na mesma semana. O PPI é publicado pela ANP sem tributos; o preço de realização vem da planilha ` +
     `semanal de produtores e importadores da ANP (coluna Brasil), que inclui PIS/Pasep, Cofins e Cide — ` +
@@ -853,6 +848,7 @@ async function boot(){
   await new Promise(res => { if(window.Chart) return res(); window.addEventListener('load', res, {once:true}); });
 
   $('#b-updated').textContent = new Date(DATA.generated_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+
   // Sem isto, P() devolve undefined e renderChips explode antes de qualquer
   // coisa aparecer. Caiu fora numa reestruturacao do boot().
   state.p = DATA.order[0];
