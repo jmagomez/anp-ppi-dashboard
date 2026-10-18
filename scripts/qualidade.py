@@ -6,12 +6,14 @@ O pipeline confiava na fonte: o que a ANP publicasse entrava direto no painel.
 Este modulo roda depois do build e compara o resultado com a execucao anterior
 e com o que e plausivel, sinalizando o que precisa de olho humano.
 
-Nada aqui interrompe o pipeline. Os achados sao gravados em
-docs/data/qualidade.json e consumidos pelo dashboard e pelo e-mail semanal.
+E tambem onde a lista UNICA de alertas do projeto e montada: os alertas de
+cobertura de aliquota nascem em defasagem.py e chegam aqui por parametro.
+Nada aqui interrompe o pipeline. O resultado vai para docs/data/qualidade.json
+e e consumido pelo dashboard e pelo e-mail semanal.
 
 Niveis:
   erro   quebra de integridade -- serie que encolhe, valor impossivel,
-         degrau com assinatura de aliquota errada
+         degrau com assinatura de aliquota errada, aliquota vencida
   aviso  algo fora do esperado que pode ser real -- variacao extrema,
          terminal que some, cobertura baixa, aliquota presumida
   info   comportamento normal que vale registrar -- ANP nao publicou
@@ -21,11 +23,13 @@ Niveis:
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from pathlib import Path
 from statistics import median
 
-BR_TZ = timezone(timedelta(hours=-3))
+from comum import (
+    agora_br, escrever_json, fmt_data, fmt_num, fmt_pct, hoje_br, media,
+)
 
 # limiares
 VAR_AVISO = 20.0        # % de variacao semanal da media que merece aviso
@@ -37,38 +41,7 @@ RESIDUO_ACUSA = 0.5     # |salto + d_taxa| / |d_taxa| abaixo disso acusa erro
 RESIDUO_INCONCLUSIVO = 2.0  # acima disso o mercado se moveu demais para concluir
 
 
-def hoje_br() -> date:
-    """Data corrente em Brasilia.
-
-    O runner do GitHub roda em UTC: na execucao de segunda as 23:00 UTC o
-    date.today() ja e terca, enquanto o resto do pipeline carimba tudo em BRT.
-    Duas nocoes de "hoje" no mesmo processo sempre acabam divergindo em algum
-    caso de borda.
-    """
-    return datetime.now(BR_TZ).date()
-
-
-def _mean(vals):
-    v = [x for x in vals if x is not None]
-    return sum(v) / len(v) if v else None
-
-
-def _fmt(v, casas=4):
-    if v is None:
-        return "sem dado"
-    s = f"{v:,.{casas}f}"
-    return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
-
-def _pct(v):
-    return "sem dado" if v is None else ("+" if v > 0 else "") + _fmt(v, 2) + "%"
-
-
-def _dbr(iso):
-    return date.fromisoformat(iso).strftime("%d/%m/%Y")
-
-
-class Achados:
+class Alertas:
     def __init__(self):
         self.itens = []
 
@@ -94,7 +67,7 @@ class Achados:
 # --------------------------------------------------------------------------- #
 # checagens sobre o PPI
 # --------------------------------------------------------------------------- #
-def checar_ppi(products: dict, anterior: dict | None, ach: Achados,
+def checar_ppi(products: dict, anterior: dict | None, ach: Alertas,
                hoje: date | None = None) -> None:
     hoje = hoje or hoje_br()
     ant_prod = (anterior or {}).get("products", {})
@@ -123,8 +96,8 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados,
             if fim_ant and weeks[-1]["end"] < fim_ant:
                 ach.erro(
                     "serie_retrocedeu", key, label,
-                    f"{label}: a ultima semana retrocedeu de {_dbr(fim_ant)} para "
-                    f"{_dbr(weeks[-1]['end'])}."
+                    f"{label}: a ultima semana retrocedeu de {fmt_data(fim_ant)} para "
+                    f"{fmt_data(weeks[-1]['end'])}."
                 )
             elif fim_ant and weeks[-1]["end"] == fim_ant:
                 parados.append((label, fim_ant))
@@ -144,7 +117,7 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados,
             ach.erro(
                 "semana_duplicada", key, label,
                 f"{label}: semana(s) repetida(s) na serie: "
-                f"{', '.join(_dbr(d) for d in dup[:5])}."
+                f"{', '.join(fmt_data(d) for d in dup[:5])}."
             )
 
         limite = hoje - timedelta(days=365)
@@ -159,7 +132,7 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados,
             ach.aviso(
                 "buraco_calendario", key, label,
                 f"{label}: {len(recentes)} intervalo(s) sem publicacao no ultimo ano; "
-                f"o mais recente entre {_dbr(ult[0])} e {_dbr(ult[1])} "
+                f"o mais recente entre {fmt_data(ult[0])} e {fmt_data(ult[1])} "
                 f"({ult[2]} semana(s) sem dado)."
             )
 
@@ -177,10 +150,10 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados,
             ach.aviso(
                 "cobertura_baixa", key, label,
                 f"{label}: so {com_dado} de {len(locs)} terminais tem dado na semana "
-                f"de {_dbr(last['end'])} ({com_dado / len(locs):.0%} de cobertura)."
+                f"de {fmt_data(last['end'])} ({com_dado / len(locs):.0%} de cobertura)."
             )
 
-        med = _mean(last["v"])
+        med = media(last["v"])
         if med:
             fora = [(locs[i], v) for i, v in enumerate(last["v"])
                     if v is not None and i < len(locs)
@@ -190,30 +163,30 @@ def checar_ppi(products: dict, anterior: dict | None, ach: Achados,
                 ach.aviso(
                     "terminal_fora_da_faixa", key, label,
                     f"{label}: {len(fora)} terminal(is) a mais de {DESVIO_TERMINAL:.0f}% "
-                    f"da media na semana de {_dbr(last['end'])}; o maior desvio e "
-                    f"{pior[0]} ({_pct((pior[1] / med - 1) * 100)})."
+                    f"da media na semana de {fmt_data(last['end'])}; o maior desvio e "
+                    f"{pior[0]} ({fmt_pct((pior[1] / med - 1) * 100)})."
                 )
 
         if len(weeks) > 1:
-            ant_med = _mean(weeks[-2]["v"])
+            ant_med = media(weeks[-2]["v"])
             if med and ant_med:
                 var = (med / ant_med - 1) * 100
                 if abs(var) >= VAR_ERRO:
                     ach.erro(
                         "variacao_impossivel", key, label,
-                        f"{label}: PPI medio variou {_pct(var)} em uma semana "
-                        f"({_fmt(ant_med)} para {_fmt(med)}). Variacao dessa ordem "
+                        f"{label}: PPI medio variou {fmt_pct(var)} em uma semana "
+                        f"({fmt_num(ant_med, 4)} para {fmt_num(med, 4)}). Variacao dessa ordem "
                         f"costuma ser erro de publicacao, nao mercado."
                     )
                 elif abs(var) >= VAR_AVISO:
                     ach.aviso(
                         "variacao_extrema", key, label,
-                        f"{label}: PPI medio variou {_pct(var)} em uma semana "
-                        f"({_fmt(ant_med)} para {_fmt(med)})."
+                        f"{label}: PPI medio variou {fmt_pct(var)} em uma semana "
+                        f"({fmt_num(ant_med, 4)} para {fmt_num(med, 4)})."
                     )
 
     if parados:
-        quando = _dbr(parados[0][1])
+        quando = fmt_data(parados[0][1])
         quais = "todos os produtos" if len(parados) == len(products) \
             else ", ".join(l for l, _ in parados)
         ach.info(
@@ -231,7 +204,7 @@ def total_faixa(f: dict) -> float:
                  else f.get("pis", 0) + f.get("cofins", 0) + f.get("cide", 0), 6)
 
 
-def checar_degraus(out_dir: Path, ach: Achados,
+def checar_degraus(out_dir: Path, ach: Alertas,
                    defas: dict | None = None, cfg: dict | None = None) -> list:
     """Procura a assinatura de aliquota errada na virada de faixa.
 
@@ -284,7 +257,7 @@ def checar_degraus(out_dir: Path, ach: Achados,
                 if atual.get("presumido"):
                     ach.aviso(
                         "aliquota_presumida", key, label,
-                        f"{label}: a aliquota vigente desde {_dbr(corte)} e presumida e "
+                        f"{label}: a aliquota vigente desde {fmt_data(corte)} e presumida e "
                         f"ainda nao ha semanas suficientes depois do corte para o teste "
                         f"de continuidade rodar. Confirmar em fonte oficial."
                     )
@@ -308,17 +281,17 @@ def checar_degraus(out_dir: Path, ach: Achados,
             if razao <= RESIDUO_ACUSA:
                 ach.erro(
                     "degrau_aliquota", key, label,
-                    f"{label}: na virada de aliquota de {_dbr(corte)} a defasagem saltou "
-                    f"{_fmt(salto)} R$, que e quase exatamente o oposto da mudanca de "
-                    f"aliquota ({_fmt(d_taxa)} R$). Essa e a assinatura de aliquota "
-                    f"errada em scripts/tributos.json -- residuo de {_fmt(residuo)} R$, "
+                    f"{label}: na virada de aliquota de {fmt_data(corte)} a defasagem saltou "
+                    f"{fmt_num(salto, 4)} R$, que e quase exatamente o oposto da mudanca de "
+                    f"aliquota ({fmt_num(d_taxa, 4)} R$). Essa e a assinatura de aliquota "
+                    f"errada em scripts/tributos.json -- residuo de {fmt_num(residuo, 4)} R$, "
                     f"{razao:.0%} da mudanca."
                 )
             elif atual.get("presumido"):
                 if razao >= RESIDUO_INCONCLUSIVO:
                     ach.aviso(
                         "aliquota_presumida", key, label,
-                        f"{label}: a aliquota vigente desde {_dbr(corte)} e presumida, nao "
+                        f"{label}: a aliquota vigente desde {fmt_data(corte)} e presumida, nao "
                         f"confirmada em fonte oficial. O teste de continuidade e "
                         f"inconclusivo: o preco se moveu {razao:.0f} vezes mais que a "
                         f"mudanca de aliquota no periodo, entao ele nao confirma nem "
@@ -327,27 +300,38 @@ def checar_degraus(out_dir: Path, ach: Achados,
                 else:
                     ach.aviso(
                         "aliquota_presumida", key, label,
-                        f"{label}: a aliquota vigente desde {_dbr(corte)} e presumida, nao "
+                        f"{label}: a aliquota vigente desde {fmt_data(corte)} e presumida, nao "
                         f"confirmada em fonte oficial. O teste de continuidade nao acusou "
-                        f"a assinatura de erro (residuo de {_fmt(residuo)} R$), o que "
+                        f"a assinatura de erro (residuo de {fmt_num(residuo, 4)} R$), o que "
                         f"sustenta a presuncao sem confirma-la."
                     )
     return degraus
 
 
 # --------------------------------------------------------------------------- #
-def run(products: dict, anterior: dict | None, out_dir: Path) -> dict:
-    ach = Achados()
+def run(products: dict, anterior: dict | None, out_dir: Path,
+        externos=()) -> dict:
+    """Monta a lista unica de alertas do projeto.
+
+    `externos` recebe os alertas de cobertura de aliquota, que nascem em
+    defasagem.py porque dependem das faixas de tributos.json. Eles chegam aqui
+    no mesmo formato dos daqui e saem num unico lugar: antes havia dois
+    sistemas paralelos -- `avisos_cobertura` em defasagem.json e `achados` em
+    qualidade.json -- com schemas diferentes, dois paineis no dashboard e uma
+    costura ad hoc no e-mail para juntar os dois.
+    """
+    ach = Alertas()
     checar_ppi(products, anterior, ach)
     degraus = checar_degraus(out_dir, ach)
+    ach.itens.extend(externos)
 
     ordem = {"erro": 0, "aviso": 1, "info": 2}
-    ach.itens.sort(key=lambda x: (ordem[x["nivel"]], x["produto"] or ""))
+    ach.itens.sort(key=lambda x: (ordem[x["nivel"]], x.get("produto") or ""))
     resumo = {n: sum(1 for i in ach.itens if i["nivel"] == n)
               for n in ("erro", "aviso", "info")}
 
     payload = {
-        "generated_at": datetime.now(BR_TZ).isoformat(timespec="seconds"),
+        "generated_at": agora_br().isoformat(timespec="seconds"),
         "comparado_com": (anterior or {}).get("generated_at"),
         "limiares": {
             "variacao_aviso_pct": VAR_AVISO, "variacao_erro_pct": VAR_ERRO,
@@ -356,11 +340,10 @@ def run(products: dict, anterior: dict | None, out_dir: Path) -> dict:
             "residuo_acusa": RESIDUO_ACUSA,
         },
         "resumo": resumo,
-        "achados": ach.itens,
+        "alertas": ach.itens,
         "degraus": degraus,
     }
-    with open(out_dir / "qualidade.json", "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, ensure_ascii=False, indent=1)
+    escrever_json(out_dir / "qualidade.json", payload)
 
     print(f"[qualidade] {resumo['erro']} erro(s), {resumo['aviso']} aviso(s), "
           f"{resumo['info']} info")
