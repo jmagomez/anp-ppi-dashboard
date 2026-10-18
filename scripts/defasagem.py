@@ -14,7 +14,7 @@ tributos federais ad rem definidos em scripts/tributos.json.
 
 A premissa e conferida a cada execucao contra os valores de REALIZACAO
 publicados pela propria ANP na Sintese Semanal de Precos (ver a secao
-validacao_sintese em docs/data/_debug_ppidp.json). Semanas anteriores ao
+validacao_sintese em docs/data/diagnostico.json). Semanas anteriores ao
 inicio da serie de aliquotas ficam sem defasagem, em vez de receberem um
 numero calculado sobre base desconhecida.
 
@@ -27,21 +27,27 @@ realizacao publicado pela ANP para conferir a deducao; a checagem possivel e a
 transicao de abril/2026, quando a aliquota foi a zero.
 
 Saidas em docs/data/:
-  defasagem.json     series pareadas PPI x realizacao + defasagem
+  defasagem.json     series pareadas PPI x realizacao + resumo da conferencia
   defasagem.csv      mesma coisa em formato longo
-  _debug_ppidp.json  diagnostico da extracao e das validacoes
+  diagnostico.json   rastro da extracao e validacao ponto a ponto
+
+Os alertas de cobertura de aliquota nao sao publicados aqui: run() os devolve
+e quem monta a lista unica do projeto e o qualidade.py.
 """
 
 from __future__ import annotations
 
-import csv
 import json
 import re
-import unicodedata
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 from pathlib import Path
 
 import requests
+
+from comum import (
+    HEADERS, agora_br, as_number, escrever_csv, escrever_json, hoje_br, norm,
+    semana_chave, baixar,
+)
 
 PPIDP_URL = (
     "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/"
@@ -63,12 +69,6 @@ SINTESE_PAGE = (
 # de novo. Mais estavel porque nao carrega o nome da publicacao na URL.
 SINTESE_FALLBACK = "https://www.gov.br/anp/pt-br/centrais-de-conteudo/publicacoes/sinteses"
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; anp-ppi-dashboard/1.0)",
-    "Accept": "*/*",
-}
-
-BR_TZ = timezone(timedelta(hours=-3))
 # Antecedencia com que a expiracao de uma faixa de aliquota passa a ser avisada.
 AVISO_VIGENCIA_DIAS = 45
 COL_PRODUTO, COL_INI, COL_FIM, COL_BRASIL = 0, 1, 2, 8
@@ -105,59 +105,6 @@ SINTESE_PPI_REF = {
     "glp": {"2026-03-16": 48.02},
 }
 SINTESE_EDICAO = "13/2026"
-
-
-def semana_chave(iso: str) -> str:
-    """Segunda-feira da semana ISO que contem a data.
-
-    O PPI fecha a semana na sexta e a planilha de produtores usa outro
-    fechamento; ancorar as duas na segunda-feira da semana ISO faz o
-    pareamento correto.
-    """
-    d = date.fromisoformat(iso)
-    return (d - timedelta(days=d.weekday())).isoformat()
-
-
-def norm(text) -> str:
-    if text is None:
-        return ""
-    s = str(text).replace("\xa0", " ").strip()
-    s = unicodedata.normalize("NFKD", s)
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", s).lower()
-
-
-def download(url: str) -> bytes:
-    last = None
-    for attempt in range(3):
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=180)
-            r.raise_for_status()
-            if len(r.content) < 5000:
-                raise RuntimeError(f"arquivo truncado: {len(r.content)} bytes")
-            return r.content
-        except Exception as exc:  # noqa: BLE001
-            last = exc
-            print(f"  [ppidp] tentativa {attempt + 1} falhou: {exc}")
-    raise RuntimeError(f"download falhou: {last}")
-
-
-def as_number(v):
-    if v is None or isinstance(v, bool):
-        return None
-    if isinstance(v, (int, float)):
-        f = float(v)
-        return None if f != f else f
-    s = str(v).strip()
-    if not s or set(s) <= {"*", "-", "."} or s.lower() in {"n/d", "nd"}:
-        return None
-    s = s.replace("R$", "").replace(" ", "")
-    if "," in s:
-        s = s.replace(".", "").replace(",", ".")
-    try:
-        return float(s)
-    except ValueError:
-        return None
 
 
 # --------------------------------------------------------------------------- #
@@ -217,8 +164,15 @@ def validade_faixa(trib: dict, produto: str):
     return faixas[-1].get("ate") if faixas else None
 
 
-def avisos_cobertura(data: dict, trib: dict, hoje: date) -> list:
-    """Alertas sobre aliquotas: as que ja venceram e as que estao para vencer."""
+def alertas_cobertura(data: dict, trib: dict, hoje: date) -> list:
+    """Alertas sobre aliquotas: as que ja venceram e as que estao para vencer.
+
+    Devolve no mesmo formato dos alertas de qualidade.py -- {nivel, codigo,
+    produto, label, texto} -- porque o projeto tem UMA lista de alertas, e ela
+    e montada la. Antes eram dois sistemas paralelos, com schemas diferentes,
+    publicados em arquivos diferentes e renderizados em dois paineis separados
+    do dashboard, para a mesma finalidade.
+    """
     avisos = []
     for key, p in data.items():
         cob = p.get("cobertura", {})
@@ -229,7 +183,7 @@ def avisos_cobertura(data: dict, trib: dict, hoje: date) -> list:
         n_rec = cob.get("sem_faixa_recente", 0)
         if n_rec:
             avisos.append({
-                "produto": key, "label": rotulo, "nivel": "erro",
+                "codigo": "cobertura_parada", "produto": key, "label": rotulo, "nivel": "erro",
                 "texto": (f"{rotulo}: {n_rec} semana(s) com dado da ANP nao entraram na "
                           f"serie por falta de aliquota em tributos.json "
                           f"({cob['recente_de']} a {cob['recente_ate']}). A defasagem "
@@ -245,7 +199,7 @@ def avisos_cobertura(data: dict, trib: dict, hoje: date) -> list:
             faltam = (date.fromisoformat(ate) - hoje).days
             if faltam < 0 and not n_rec:
                 avisos.append({
-                    "produto": key, "label": rotulo, "nivel": "erro",
+                    "codigo": "cobertura_vencida", "produto": key, "label": rotulo, "nivel": "erro",
                     "texto": (f"{rotulo}: a aliquota vigente venceu em {ate} e nao ha "
                               f"prorrogacao em tributos.json. A serie ainda esta "
                               f"completa porque o dado da ANP nao passou dessa data, "
@@ -253,7 +207,7 @@ def avisos_cobertura(data: dict, trib: dict, hoje: date) -> list:
                 })
             elif 0 <= faltam <= AVISO_VIGENCIA_DIAS:
                 avisos.append({
-                    "produto": key, "label": rotulo, "nivel": "aviso",
+                    "codigo": "cobertura_a_vencer", "produto": key, "label": rotulo, "nivel": "aviso",
                     "texto": (f"{rotulo}: a aliquota vigente expira em {ate}, daqui a "
                               f"{faltam} dia(s). Confirme se houve prorrogacao antes "
                               f"que as semanas comecem a sair da serie."),
@@ -263,7 +217,7 @@ def avisos_cobertura(data: dict, trib: dict, hoje: date) -> list:
         interior = cob.get("sem_faixa", 0) - n_rec
         if interior > 0 and cob.get("de"):
             avisos.append({
-                "produto": key, "label": rotulo, "nivel": "info",
+                "codigo": "cobertura_buraco", "produto": key, "label": rotulo, "nivel": "info",
                 "texto": (f"{rotulo}: {interior} semana(s) no meio da serie ficam de fora "
                           f"por nao haver aliquota unica no periodo ({cob['de']} a "
                           f"{cob['ate']}) -- exclusao deliberada, nao falta de dado."),
@@ -513,7 +467,7 @@ def resumo_validacao(val: dict) -> dict:
 
 def write_outputs(data: dict, trib: dict, out_dir: Path, resumo: dict | None = None) -> None:
     payload = {
-        "generated_at": datetime.now(BR_TZ).isoformat(timespec="seconds"),
+        "generated_at": agora_br().isoformat(timespec="seconds"),
         "source_file": PPIDP_URL,
         "source_page": PPIDP_PAGE,
         "sintese_page": SINTESE_PAGE,
@@ -529,11 +483,11 @@ def write_outputs(data: dict, trib: dict, out_dir: Path, resumo: dict | None = N
         ),
         "order": [k for k in MATCH if k in data],
         "validacao": resumo,
-        "avisos_cobertura": avisos_cobertura(data, trib, datetime.now(BR_TZ).date()),
         "products": data,
     }
-    with open(out_dir / "defasagem.json", "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, ensure_ascii=False, separators=(",", ":"))
+    # Os alertas saem daqui: eles iam para este arquivo E para o diagnostico,
+    # byte a byte iguais, e ainda havia a lista de qualidade.json em paralelo.
+    escrever_json(out_dir / "defasagem.json", payload)
 
     rows = [("produto", "unidade", "semana_fim", "ppi", "realizacao",
              "defasagem_abs", "defasagem_pct")]
@@ -542,33 +496,42 @@ def write_outputs(data: dict, trib: dict, out_dir: Path, resumo: dict | None = N
             rows.append((p["label"], p["unit"], w["end"],
                          f"{w['ppi']:.6f}", f"{w['real']:.6f}", f"{w['gap']:.6f}",
                          "" if w["gap_pct"] is None else f"{w['gap_pct']:.4f}"))
-    with open(out_dir / "defasagem.csv", "w", newline="", encoding="utf-8") as fh:
-        csv.writer(fh).writerows(rows)
+    escrever_csv(out_dir / "defasagem.csv", rows)
 
 
-def run(products: dict, out_dir: Path) -> None:
-    """Executado ao final do build principal. Nunca levanta excecao."""
-    debug = {"source_file": PPIDP_URL, "source_page": PPIDP_PAGE}
+def run(products: dict, out_dir: Path) -> list:
+    """Executado pelo build principal. Nunca levanta excecao.
+
+    Devolve a lista de alertas de cobertura de aliquota, que quem publica e o
+    qualidade.py. Escreve defasagem.json (serie + conferencia) e
+    diagnostico.json (rastro da extracao, para quem for investigar).
+    """
+    diag = {"source_file": PPIDP_URL, "source_page": PPIDP_PAGE}
+    alertas = []
     try:
         trib = carregar_tributos()
         print(f"[ppidp] baixando {PPIDP_URL}")
-        blob = download(PPIDP_URL)
+        blob = baixar(PPIDP_URL)
         print(f"[ppidp] {len(blob):,} bytes")
 
-        raw, diag = parse_ppidp(blob)
-        debug.update(diag)
+        raw, extracao = parse_ppidp(blob)
+        diag.update(extracao)
 
         data, checks = build(products, raw, trib)
-        debug["inicio_serie"] = trib["inicio_serie"]
-        debug["checagens"] = checks
         val = validar(data, raw, trib)
         resumo = resumo_validacao(val)
-        debug["validacao_sintese"] = val
-        debug["validacao_resumo"] = resumo
-        debug["links"] = checar_links()
-        avisos = avisos_cobertura(data, trib, datetime.now(BR_TZ).date())
-        debug["avisos_cobertura"] = avisos
-        for a in avisos:
+
+        diag["inicio_serie"] = trib["inicio_serie"]
+        diag["checagens"] = checks
+        # So o detalhe ponto a ponto fica aqui. O resumo agregado vai para
+        # defasagem.json, que e quem o dashboard le -- publicar os dois era ter
+        # a mesma informacao em dois arquivos, divergindo no dia em que um deles
+        # deixasse de ser escrito.
+        diag["validacao_sintese"] = val
+        diag["links"] = checar_links()
+
+        alertas = alertas_cobertura(data, trib, hoje_br())
+        for a in alertas:
             print(f"[ppidp] {a['nivel'].upper()}: {a['texto']}")
 
         if resumo["erro_max_pct"] is not None:
@@ -587,11 +550,11 @@ def run(products: dict, out_dir: Path) -> None:
                 else:
                     print(f"[ppidp] {k:<9} {c['status']}")
         else:
-            debug["error"] = "nenhum produto pareado"
+            diag["error"] = "nenhum produto pareado"
             print("[ppidp] nenhum produto pareado")
     except Exception as exc:  # noqa: BLE001
-        debug["error"] = f"{type(exc).__name__}: {exc}"
-        print(f"[ppidp] ERRO: {debug['error']}")
+        diag["error"] = f"{type(exc).__name__}: {exc}"
+        print(f"[ppidp] ERRO: {diag['error']}")
 
-    with open(out_dir / "_debug_ppidp.json", "w", encoding="utf-8") as fh:
-        json.dump(debug, fh, ensure_ascii=False, indent=1)
+    escrever_json(out_dir / "diagnostico.json", diag, ignorar=())
+    return alertas
