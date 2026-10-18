@@ -305,7 +305,7 @@ function pfmt(v, d){
 }
 // Cor sozinha nao serve: ~8% dos homens nao distinguem vermelho de verde, e o
 // sinal da defasagem e o numero que mais importa na pagina.
-function seta(v){ return vazio(v) ? '' : (v>0 ? '▲ ' : (v<0 ? '▼ ' : '')); }
+function seta(v){ return vazio(v) ? '' : (v>0 ? '▲ ' : (v<0 ? '▼ ' : '')); }
 function sinal(v, d){ return seta(v) + pfmt(v, d); }
 function dfmt(iso){ const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
 function dias(a, b){
