@@ -39,7 +39,7 @@ class TestIntegridade:
     def test_serie_que_encolhe_e_erro(self):
         # A ANP republicar a planilha incompleta e plausivel; sobrescrever dado
         # bom por dado truncado sem avisar, nao.
-        ach = q.Achados()
+        ach = q.Alertas()
         atual = {"gasolina": produto()}
         anterior = {"products": {"gasolina": produto(weeks=[
             semana("2026-08-07", [2.9, 3.0]),
@@ -50,7 +50,7 @@ class TestIntegridade:
         assert "serie_encolheu" in ach.codigos("erro")
 
     def test_serie_que_retrocede_e_erro(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         atual = {"gasolina": produto(weeks=[semana("2026-08-07", [2.9, 3.0])])}
         anterior = {"products": {"gasolina": produto(weeks=[
             semana("2026-08-07", [2.9, 3.0]),
@@ -60,7 +60,7 @@ class TestIntegridade:
         assert "serie_retrocedeu" in ach.codigos("erro")
 
     def test_terminal_que_some_e_aviso(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         atual = {"gasolina": produto(locations=["Santos"],
                                      weeks=[semana("2026-08-21", [3.0])])}
         anterior = {"products": {"gasolina": produto(
@@ -71,14 +71,14 @@ class TestIntegridade:
 
     def test_sem_semana_nova_e_um_unico_info_agregado(self):
         # Um achado por produto viraria quatro linhas identicas toda semana.
-        ach = q.Achados()
+        ach = q.Alertas()
         prods = {k: produto(label=k) for k in ("gasolina", "diesel", "qav", "glp")}
         anterior = {"products": {k: produto(label=k) for k in prods}}
         q.checar_ppi(prods, anterior, ach, HOJE)
         assert ach.codigos("info").count("sem_semana_nova") == 1
 
     def test_sem_execucao_anterior_nao_quebra(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         q.checar_ppi({"gasolina": produto()}, None, ach, HOJE)
         assert "serie_encolheu" not in ach.codigos()
 
@@ -88,33 +88,33 @@ class TestIntegridade:
 # --------------------------------------------------------------------------- #
 class TestIntegridadeInterna:
     def test_semana_duplicada_e_erro(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(weeks=[semana("2026-08-21", [3.0, 3.1]),
                            semana("2026-08-21", [3.0, 3.1])])
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
         assert "semana_duplicada" in ach.codigos("erro")
 
     def test_valor_nao_positivo_e_erro(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(weeks=[semana("2026-08-21", [0.0, 3.1])])
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
         assert "valor_nao_positivo" in ach.codigos("erro")
 
     def test_serie_vazia_e_erro(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         q.checar_ppi({"gasolina": produto(weeks=[])}, None, ach, HOJE)
         assert "sem_semanas" in ach.codigos("erro")
 
     def test_buraco_antigo_nao_alarma(self):
         # Buracos de 2022 nao dizem nada sobre a execucao de hoje.
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(weeks=[semana("2022-04-14", [3.0, 3.1]),
                            semana("2022-04-29", [3.0, 3.1])])
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
         assert "buraco_calendario" not in ach.codigos()
 
     def test_buraco_recente_alarma(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(weeks=[semana("2026-07-24", [3.0, 3.1]),
                            semana("2026-08-14", [3.0, 3.1])])
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
@@ -126,14 +126,14 @@ class TestIntegridadeInterna:
 # --------------------------------------------------------------------------- #
 class TestPlausibilidade:
     def test_variacao_de_publicacao_e_erro(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(weeks=[semana("2026-08-14", [3.0, 3.0]),
                            semana("2026-08-21", [9.0, 9.0])])
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
         assert "variacao_impossivel" in ach.codigos("erro")
 
     def test_variacao_grande_mas_possivel_e_aviso(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(weeks=[semana("2026-08-14", [3.0, 3.0]),
                            semana("2026-08-21", [3.75, 3.75])])  # +25%
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
@@ -141,21 +141,21 @@ class TestPlausibilidade:
         assert "variacao_impossivel" not in ach.codigos("erro")
 
     def test_variacao_normal_nao_gera_nada(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(weeks=[semana("2026-08-14", [3.00, 3.00]),
                            semana("2026-08-21", [3.09, 3.09])])  # +3%
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
         assert not [c for c in ach.codigos() if c.startswith("variacao")]
 
     def test_cobertura_baixa_e_aviso(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(locations=["A", "B", "C", "D", "E"],
                     weeks=[semana("2026-08-21", [3.0, 3.0, None, None, None])])
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
         assert "cobertura_baixa" in ach.codigos("aviso")
 
     def test_terminal_muito_fora_da_media_e_aviso(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         p = produto(locations=["A", "B"], weeks=[semana("2026-08-21", [3.0, 5.0])])
         q.checar_ppi({"gasolina": p}, None, ach, HOJE)
         assert "terminal_fora_da_faixa" in ach.codigos("aviso")
@@ -189,7 +189,7 @@ class TestDetectorDeDegrau:
         # reconstruida fica alta demais e a defasagem salta exatamente -d_taxa.
         antes = [-1.00] * 6
         depois = [-1.00 + TAXA] * 6
-        ach = q.Achados()
+        ach = q.Alertas()
         degraus = q.checar_degraus(None, ach, defas_qav(antes, depois), cfg_qav())
         assert "degrau_aliquota" in ach.codigos("erro")
         assert degraus[0]["razao_residuo"] == pytest.approx(0.0, abs=0.01)
@@ -197,7 +197,7 @@ class TestDetectorDeDegrau:
     def test_serie_continua_nao_acusa(self):
         antes = [-1.00] * 6
         depois = [-1.00] * 6
-        ach = q.Achados()
+        ach = q.Alertas()
         degraus = q.checar_degraus(None, ach, defas_qav(antes, depois), cfg_qav())
         assert "degrau_aliquota" not in ach.codigos("erro")
         assert degraus[0]["razao_residuo"] == pytest.approx(1.0, abs=0.01)
@@ -208,13 +208,13 @@ class TestDetectorDeDegrau:
         # 0,07 R$. A regra antiga so perguntava se o salto era grande.
         antes = [-1.00] * 6
         depois = [1.787] * 6  # salto de +2,787
-        ach = q.Achados()
+        ach = q.Alertas()
         degraus = q.checar_degraus(None, ach, defas_qav(antes, depois), cfg_qav())
         assert "degrau_aliquota" not in ach.codigos("erro")
         assert degraus[0]["razao_residuo"] > q.RESIDUO_INCONCLUSIVO
 
     def test_presumida_com_mercado_calmo_sustenta_a_presuncao(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         q.checar_degraus(None, ach, defas_qav([-1.0] * 6, [-1.0] * 6), cfg_qav(True))
         avisos = [i for i in ach.itens if i["codigo"] == "aliquota_presumida"]
         assert avisos and "sustenta a presuncao" in avisos[0]["texto"]
@@ -222,13 +222,13 @@ class TestDetectorDeDegrau:
     def test_presumida_com_mercado_agitado_se_declara_inconclusiva(self):
         # Honestidade importa mais que veredito: o teste nao pode fingir que
         # confirmou algo que nao consegue distinguir.
-        ach = q.Achados()
+        ach = q.Alertas()
         q.checar_degraus(None, ach, defas_qav([-1.0] * 6, [1.787] * 6), cfg_qav(True))
         avisos = [i for i in ach.itens if i["codigo"] == "aliquota_presumida"]
         assert avisos and "inconclusivo" in avisos[0]["texto"]
 
     def test_poucas_semanas_depois_do_corte_nao_conclui(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         degraus = q.checar_degraus(None, ach, defas_qav([-1.0] * 6, [-1.0]), cfg_qav(True))
         assert degraus == []
         assert "aliquota_presumida" in ach.codigos("aviso")
@@ -238,12 +238,12 @@ class TestDetectorDeDegrau:
             {"produto": "qav", "de": "2023-09-04", "ate": "2026-04-05", "total": 0.0},
             {"produto": "qav", "de": "2026-04-13", "ate": None, "total": 0.0},
         ]}
-        ach = q.Achados()
+        ach = q.Alertas()
         degraus = q.checar_degraus(None, ach, defas_qav([-1.0] * 6, [-1.0] * 6), cfg)
         assert degraus == []
         assert ach.itens == []
 
     def test_produto_sem_defasagem_e_ignorado(self):
-        ach = q.Achados()
+        ach = q.Alertas()
         degraus = q.checar_degraus(None, ach, {"products": {}}, cfg_qav())
         assert degraus == []
