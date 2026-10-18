@@ -69,7 +69,7 @@ então não dá para conferir a semana corrente automaticamente. E **não cobre 
 aparece na Síntese.
 
 Para o QAV, a checagem possível é o **teste de degrau** (abaixo). O diagnóstico completo fica
-em `docs/data/_debug_ppidp.json`, seção `validacao_sintese`. Se o **tributo implícito** divergir
+em `docs/data/diagnostico.json`, seção `validacao_sintese`. Se o **tributo implícito** divergir
 do **aplicado**, a alíquota mudou — corrija `scripts/tributos.json`.
 
 ### Limites conhecidos
@@ -86,26 +86,12 @@ do **aplicado**, a alíquota mudou — corrija `scripts/tributos.json`.
 - A defasagem **não é margem nem lucro**: ignora custos logísticos, tributos estaduais e a
   estrutura comercial de cada agente.
 
-### Aviso de cobertura de alíquota
+## Alertas sobre o dado
 
-Uma faixa de `tributos.json` pode ter prazo. Passada a data, `deducao()` devolve `None`, a
-semana é descartada e o produto **encolhe no gráfico sem erro nenhum**. Para que isso não passe
-despercebido, a cada execução o pipeline emite avisos publicados em `defasagem.json`
-(`avisos_cobertura`), no log, no e-mail semanal e no topo da metodologia do dashboard:
-
-| nível | quando | texto |
-|---|---|---|
-| `erro` | há semanas com dado da ANP e sem alíquota declarada | quantas semanas e o intervalo |
-| `erro` | a última faixa já venceu | data do vencimento |
-| `aviso` | a última faixa vence em até 45 dias | data e dias restantes |
-
-Faixa sem data final (`"ate": null`, caso de gasolina e GLP) nunca gera aviso.
-
-## Checagens de sanidade do dado de entrada
-
-`scripts/qualidade.py` roda depois do build e compara o resultado com a execução anterior e
-com o que é plausível, em vez de confiar na fonte. Os achados vão para
-`docs/data/qualidade.json`, para o painel **Qualidade do dado** no dashboard e para o e-mail.
+Uma lista só, em `docs/data/qualidade.json`, consumida pelo painel **Qualidade do dado** do
+dashboard e pelo e-mail. Reúne o que `scripts/qualidade.py` encontra comparando a execução
+com a anterior e com o que é plausível, mais os alertas de cobertura de alíquota, que nascem
+em `scripts/defasagem.py` porque dependem das faixas de `tributos.json`.
 
 | nível | checagem |
 |---|---|
@@ -113,10 +99,19 @@ com o que é plausível, em vez de confiar na fonte. Os achados vão para
 | `erro` | semana duplicada; valor zerado ou negativo |
 | `erro` | variação semanal ≥ 60% — ordem de grandeza de erro de publicação |
 | `erro` | degrau com assinatura de alíquota errada na virada de faixa |
+| `erro` | alíquota vencida, ou semanas paradas por falta de faixa em `tributos.json` |
 | `aviso` | variação semanal ≥ 20%; terminal a mais de 15% da média |
 | `aviso` | terminal sumiu da planilha; cobertura abaixo de 80% |
 | `aviso` | buraco no calendário no último ano; alíquota presumida |
-| `info` | a ANP não publicou semana nova desde a última execução |
+| `aviso` | alíquota vigente expira em até 45 dias |
+| `info` | a ANP não publicou semana nova; buraco deliberado no meio da série |
+
+Nível `info` fica só no dashboard: são fatos permanentes da série e, repetidos toda semana no
+e-mail, ensinam o leitor a ignorar a seção.
+
+Uma faixa de `tributos.json` com prazo é uma bomba-relógio silenciosa: passada a data, a semana
+é descartada e o produto **encolhe no gráfico sem erro nenhum**. Os alertas de cobertura
+existem para que isso não passe despercebido.
 
 ### O teste de degrau
 
@@ -151,9 +146,14 @@ sintaxe em `scripts/` só aparecia às 8h da manhã, na execução agendada.
 | `tests/test_qualidade.py` | cada checagem de sanidade e cada resultado possível do detector de degrau, incluindo a regressão do falso positivo |
 | `tests/test_tributos_config.py` | o próprio `tributos.json`: faixas sobrepostas, faixa aberta fora do fim, buraco de cobertura entre o início da série e hoje |
 | `tests/test_json_publicado.py` | contrato dos JSON que o dashboard busca em runtime, incluindo a identidade `defasagem = realização − PPI` |
+| `tests/test_comum.py` | escrita idempotente e formatação pt-BR |
+| `tests/test_alertas.py` | schema único dos alertas e os níveis da cobertura de alíquota |
 
 O lint usa `ruff check --select E9,F` — só sintaxe, nome indefinido e import morto. Um CI que
 reclama de estilo no primeiro dia é um CI que todos aprendem a ignorar.
+
+> Vai mexer no código? [`CLAUDE.md`](CLAUDE.md) traz o fluxo do processo em uma tela, os
+> invariantes que não podem ser quebrados e as armadilhas que já custaram tempo.
 
 ## E-mail semanal
 
@@ -194,9 +194,11 @@ Página única, sem build. Notas de implementação que não são óbvias:
 ## Estrutura
 
 ```
-scripts/build_data.py                 coleta e normalizacao do PPI
+CLAUDE.md                             fluxo do processo, invariantes e armadilhas
+scripts/comum.py                      parsing, formatacao, semana ISO e escrita idempotente
+scripts/build_data.py                 coleta do PPI e orquestracao do pipeline
 scripts/defasagem.py                  preco de realizacao, deducao de tributos e defasagem
-scripts/qualidade.py                  checagens de sanidade do dado de entrada
+scripts/qualidade.py                  checagens de sanidade e lista unica de alertas
 scripts/tributos.json                 aliquotas ad rem, com vigencia e fonte
 scripts/email_semanal.py              montagem e envio do e-mail
 tests/                                suite de testes (pytest)
@@ -205,10 +207,10 @@ tests/                                suite de testes (pytest)
 docs/index.html                       dashboard (pagina unica, Chart.js via CDN)
 docs/data/ppi.json                    serie completa do PPI
 docs/data/defasagem.json              serie pareada PPI x realizacao + resumo da conferencia
-docs/data/defasagem.csv               mesma serie em formato longo
-docs/data/qualidade.json              achados das checagens de sanidade
+docs/data/qualidade.json              todos os alertas e os degraus de aliquota
+docs/data/diagnostico.json            rastro da extracao e validacao ponto a ponto
 docs/data/meta.json                   metadados da ultima execucao
-docs/data/_debug_ppidp.json           diagnostico e validacao contra a ANP
+docs/data/*.csv                       ppi_long e defasagem, para download
 ```
 
 ## Automação
