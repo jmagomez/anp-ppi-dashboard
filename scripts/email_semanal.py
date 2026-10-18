@@ -3,7 +3,7 @@
 Monta e envia o e-mail semanal do dashboard de PPI.
 
 Conteudo: resumo do PPI por produto, defasagem contra o preco de realizacao,
-destaques, achados de qualidade do dado, link para o dashboard e o CSV da
+destaques, alertas de qualidade do dado, link para o dashboard e o CSV da
 defasagem em anexo.
 
 As duas fontes da ANP nao andam juntas: o PPI sai poucos dias depois do fim da
@@ -34,13 +34,20 @@ import os
 import smtplib
 import ssl
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 from email.message import EmailMessage
 from pathlib import Path
 
+# Os formatadores moram em comum.py: estavam reimplementados aqui e, com outros
+# nomes, tambem em qualidade.py. Os apelidos locais preservam a leitura deste
+# arquivo sem manter uma segunda copia das regras de formatacao pt-BR.
+from comum import (
+    agora_br, casas_da_unidade as casas, fmt_data as dfmt, fmt_num as nfmt,
+    fmt_pct as pfmt, media as mean,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "docs" / "data"
-BR_TZ = timezone(timedelta(hours=-3))
 
 DASHBOARD = os.environ.get(
     "DASHBOARD_URL", "https://jmagomez.github.io/anp-ppi-dashboard/"
@@ -56,32 +63,6 @@ LIM_ATRASO_DIAS = 14   # dado considerado atrasado
 # --------------------------------------------------------------------------- #
 # formatacao
 # --------------------------------------------------------------------------- #
-def nfmt(v, casas=2):
-    if v is None:
-        return "—"
-    s = f"{v:,.{casas}f}"
-    return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
-
-
-def pfmt(v, casas=2):
-    if v is None:
-        return "—"
-    return ("+" if v > 0 else "") + nfmt(v, casas) + "%"
-
-
-def dfmt(iso):
-    return date.fromisoformat(iso).strftime("%d/%m/%Y")
-
-
-def casas(unit):
-    return 4 if "litro" in unit.lower() else 2
-
-
-def mean(vals):
-    v = [x for x in vals if x is not None]
-    return sum(v) / len(v) if v else None
-
-
 def load(name):
     path = DATA / name
     if not path.exists():
@@ -160,7 +141,7 @@ def alertas(linhas):
 def lacunas(ppi, defas, qual):
     """Avisos: o que faltou, o que atrasou e o que precisa de olho humano."""
     erros, avisos = [], []
-    hoje = datetime.now(BR_TZ).date()
+    hoje = agora_br().date()
 
     ultima = max(date.fromisoformat(p["weeks"][-1]["end"])
                  for p in ppi["products"].values())
@@ -183,15 +164,14 @@ def lacunas(ppi, defas, qual):
         if faltando:
             avisos.append("Sem defasagem calculada para: " + ", ".join(faltando) + ".")
 
-        # Aliquota vencida ou perto de vencer. Sem este aviso o produto encolhe
-        # no grafico sem que nada sinalize -- foi o que aconteceria com o QAV
-        # depois de 31/07/2026. Nivel "info" fica so no dashboard: e o buraco
-        # historico deliberado, que repetido toda semana no e-mail vira ruido.
-        for a in defas.get("avisos_cobertura", []):
-            (erros if a.get("nivel") == "erro" else avisos).append(a["texto"])
-
-    # Achados do modulo de qualidade sobre o dado de entrada.
-    for a in (qual or {}).get("achados", []):
+    # Lista unica de alertas: integridade do dado de entrada e cobertura de
+    # aliquota chegam juntas em qualidade.json. Antes vinham de dois arquivos,
+    # com dois formatos, e eram costuradas aqui.
+    #
+    # Nivel "info" fica so no dashboard -- sao fatos permanentes da serie, como
+    # o buraco deliberado do QAV em abril/2026, que repetidos toda semana no
+    # e-mail viram ruido e ensinam o leitor a ignorar a secao.
+    for a in (qual or {}).get("alertas", []):
         if a.get("nivel") == "erro":
             erros.append(a["texto"])
         elif a.get("nivel") == "aviso":
@@ -249,8 +229,11 @@ def render_texto(linhas, alerts, erros, avisos, sem_ppi, sem_def):
         L.append(f"    PPI médio ......... {nfmt(l['ppi'], c)}   ({pfmt(l['var'])} na semana)"
                  f"   [semana de {dfmt(l['fim_ppi'])}]")
         if l["defasagem_pct"] is not None:
-            L.append(f"    PPI na semana ..... {nfmt(l['ppi_na_semana_def'], c)}"
-                     f"                    [semana de {dfmt(l['fim_def'])}]")
+            # Quando a realização alcança o PPI, repetir o valor da mesma
+            # semana em duas linhas não informa nada.
+            if l["fim_def"] != l["fim_ppi"]:
+                L.append(f"    PPI na semana ..... {nfmt(l['ppi_na_semana_def'], c)}"
+                         f"                    [semana de {dfmt(l['fim_def'])}]")
             L.append(f"    Realização ........ {nfmt(l['realizacao'], c)}")
             L.append(f"    Defasagem ......... {nfmt(l['defasagem'], c)}  "
                      f"({pfmt(l['defasagem_pct'])})")
@@ -300,6 +283,15 @@ def render_html(linhas, alerts, erros, avisos, sem_ppi, sem_def):
 
     for l in linhas:
         c = l["casas"]
+        # Só aparece quando as semanas divergem; de resto seria a mesma
+        # célula impressa duas vezes no mesmo cartão.
+        linha_ppi_def = "" if l["fim_def"] == l["fim_ppi"] else f"""
+        <tr>
+          <td style="padding:4px 0;color:{MUT};">PPI</td>
+          <td style="padding:4px 0;text-align:right;">{nfmt(l['ppi_na_semana_def'], c)}</td>
+          <td></td>
+        </tr>"""
+
         linha_ppi = f"""
         <tr>
           <td style="padding:5px 0;color:{MUT};">PPI médio<span style="font-size:11px;"> · {dfmt(l['fim_ppi'])}</span></td>
@@ -311,11 +303,7 @@ def render_html(linhas, alerts, erros, avisos, sem_ppi, sem_def):
             bloco = f"""
       <table role="presentation" style="width:100%;border-collapse:collapse;font-size:13px;">{linha_ppi}
         <tr><td colspan="3" style="padding:9px 0 3px;border-top:1px solid #E2E8F0;font-size:11px;color:{MUT};text-transform:uppercase;letter-spacing:.05em;">Semana de {dfmt(l['fim_def'])}</td></tr>
-        <tr>
-          <td style="padding:4px 0;color:{MUT};">PPI</td>
-          <td style="padding:4px 0;text-align:right;">{nfmt(l['ppi_na_semana_def'], c)}</td>
-          <td></td>
-        </tr>
+        {linha_ppi_def}
         <tr>
           <td style="padding:4px 0;color:{MUT};">Preço de realização</td>
           <td style="padding:4px 0;text-align:right;">{nfmt(l['realizacao'], c)}</td>
