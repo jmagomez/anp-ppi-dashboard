@@ -82,12 +82,19 @@ class TestDefasagemJson:
         d = carregar("defasagem.json")
         assert d["validacao"]["erro_max_pct"] < 1.0
 
+    def test_alertas_nao_moram_aqui(self):
+        # Eles tem um unico endereco: qualidade.json. Enquanto saiam tambem
+        # daqui, as duas copias divergiam no dia em que uma deixasse de ser
+        # escrita.
+        d = carregar("defasagem.json")
+        assert "avisos_cobertura" not in d
+
 
 class TestQualidadeJson:
     def test_estrutura(self):
         d = carregar("qualidade.json")
         assert set(d["resumo"]) == {"erro", "aviso", "info"}
-        for a in d["achados"]:
+        for a in d["alertas"]:
             assert a["nivel"] in {"erro", "aviso", "info"}
             assert a["texto"]
 
@@ -95,7 +102,7 @@ class TestQualidadeJson:
         # Erro aqui e serie que encolheu, valor negativo ou degrau de aliquota:
         # coisas que nao deveriam ter chegado ao ar.
         d = carregar("qualidade.json")
-        erros = [a["texto"] for a in d["achados"] if a["nivel"] == "erro"]
+        erros = [a["texto"] for a in d["alertas"] if a["nivel"] == "erro"]
         assert not erros, erros
 
 
