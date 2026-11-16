@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-10T01:30:28-03:00",
+ "generated_at": "2026-11-16T17:42:58-03:00",
  "comparado_com": "2026-11-09T18:10:06-03:00",
  "limiares": {
   "variacao_aviso_pct": 20.0,
@@ -10,23 +10,23 @@
  },
  "resumo": {
   "erro": 0,
-  "aviso": 1,
-  "info": 2
+  "aviso": 2,
+  "info": 1
  },
  "alertas": [
+  {
+   "codigo": "cobertura_a_vencer",
+   "produto": "diesel",
+   "label": "Diesel A S10",
+   "nivel": "aviso",
+   "texto": "Diesel A S10: a aliquota vigente expira em 2026-12-31, daqui a 45 dia(s). Confirme se houve prorrogacao antes que as semanas comecem a sair da serie."
+  },
   {
    "nivel": "aviso",
    "codigo": "aliquota_presumida",
    "produto": "qav",
    "label": "QAV",
    "texto": "QAV: a aliquota vigente desde 03/08/2026 e presumida, nao confirmada em fonte oficial. O teste de continuidade e inconclusivo: o preco se moveu 7 vezes mais que a mudanca de aliquota no periodo, entao ele nao confirma nem desmente a presuncao."
-  },
-  {
-   "nivel": "info",
-   "codigo": "sem_semana_nova",
-   "produto": null,
-   "label": null,
-   "texto": "A ANP nao publicou semana nova desde 06/11/2026 (todos os produtos). O painel segue mostrando a ultima semana disponivel."
   },
   {
    "codigo": "cobertura_buraco",
