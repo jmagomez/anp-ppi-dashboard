@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-11-18T16:10:20-03:00",
+ "generated_at": "2026-11-19T16:13:27-03:00",
  "comparado_com": "2026-11-16T17:42:50-03:00",
  "limiares": {
   "variacao_aviso_pct": 20.0,
@@ -19,7 +19,7 @@
    "produto": "diesel",
    "label": "Diesel A S10",
    "nivel": "aviso",
-   "texto": "Diesel A S10: a aliquota vigente expira em 2026-12-31, daqui a 43 dia(s). Confirme se houve prorrogacao antes que as semanas comecem a sair da serie."
+   "texto": "Diesel A S10: a aliquota vigente expira em 2026-12-31, daqui a 42 dia(s). Confirme se houve prorrogacao antes que as semanas comecem a sair da serie."
   },
   {
    "nivel": "aviso",
