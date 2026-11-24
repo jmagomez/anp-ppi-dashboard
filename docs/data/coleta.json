@@ -1,7 +1,7 @@
 {
- "ultima_tentativa": "2026-11-23T22:24:48-03:00",
+ "ultima_tentativa": "2026-11-24T03:50:30-03:00",
  "desde": "2026-11-23",
- "falhas_consecutivas": 1,
+ "falhas_consecutivas": 2,
  "fonte": "https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-ppi/ppi.xlsx",
  "erro": "download falhou em https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-ppi/ppi.xlsx apos 5 tentativas: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
 }
