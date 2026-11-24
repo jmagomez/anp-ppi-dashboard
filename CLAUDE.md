@@ -138,6 +138,10 @@ e o console sem erro.
   responde, o problema é o cliente, não o endereço. Daí os cabeçalhos de navegador
   e o `Referer` em `comum.HEADERS` — e daí também o modo degradado, porque contra
   bloqueio de IP nenhuma quantidade de paciência resolve.
+- **Cabeçalho de navegador não resolveu o bloqueio.** O run #158 (24/11) rodou com UA
+  de Chrome, `Referer` e `Accept-Language` e tomou o mesmo `ConnectionResetError(104)`
+  nas cinco tentativas. A hipótese do User-Agent está **testada e refutada**; não
+  gaste tempo refinando cabeçalho.
 - **`xlrd` lê o `.xls` da planilha de produtores; `openpyxl` lê o `.xlsx` do PPI.** São
   formatos diferentes e bibliotecas diferentes. Não troque.
 
@@ -165,5 +169,30 @@ e o console sem erro.
   inconclusivo. Confirmar em fonte oficial e remover a marca `presumido`.
 - **A conferência cobre 15 pontos de uma edição só** (13/2026) e não inclui QAV. É teste
   de regressão contra um instante conhecido, não validação da semana corrente.
+- **A coleta está bloqueada na borda do gov.br desde 21/11/2026,** e **não há espelho**.
+  Procurei em 23/11 e registro aqui para ninguém refazer a busca:
+
+  | onde | resultado |
+  |---|---|
+  | `dados.gov.br` | **não tem o PPI.** A busca por "paridade" devolve 7 conjuntos, todos de paridade do poder de compra do IPEA. A ANP não publica o PPI lá. |
+  | `anp.gov.br` (host legado) | **redireciona** para `www.gov.br/anp`. Mesma borda, mesmo bloqueio. |
+  | redistribuidores (ABICOM e afins) | publicam a **defasagem calculada**, não a planilha bruta. Trocaria a procedência do dado por uma de terceiro, que este projeto trata como propriedade de primeira classe. |
+
+  A escada de escalada, do mais barato ao mais caro:
+
+  1. **esperar.** Bloqueio de reputação costuma ser temporário, e desde o PR #3 o painel
+     aguenta esperar sem mentir: ele diz há quantos dias não coleta e de quando é o
+     número na tela;
+  2. **reclamar à ANP.** É a única correção de verdade se o bloqueio for permanente --
+     somos um cliente legítimo, uma requisição por dia, de dado público;
+  3. **mover só o download** para um host fora da faixa da Azure (worker, VPS pequeno)
+     que empurre o arquivo para o repositório, deixando o resto do pipeline no Actions.
+     Custa infraestrutura para manter e depende de acertar um IP que não esteja
+     bloqueado -- só vale se (1) e (2) falharem;
+  4. **proxy público** (`r.jina.ai` e similares): resolve em cinco minutos e **não
+     recomendo**. Um painel cuja proposta é integridade do dado passaria a depender de
+     um terceiro que pode cair, mudar o conteúdo ou sumir, e nada no artefato
+     registraria isso.
+
 - **Sem teste de fumaça do dashboard.** Um headless que carregue a página e confira
   console limpo mais os elementos principais fecharia o único buraco grande da suíte.
