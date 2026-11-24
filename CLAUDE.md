@@ -44,6 +44,7 @@ scripts/email_semanal.py  ──► só no cron de segunda e no disparo manual
 | `qualidade.json` | **todos** os alertas + degraus | dashboard, e-mail |
 | `diagnostico.json` | rastro da extração, validação ponto a ponto, links | humano investigando |
 | `meta.json` | metadados enxutos | testes |
+| `coleta.json` | **só existe quando a coleta está falhando** | dashboard, humano |
 | `ppi_long.csv`, `defasagem.csv` | download do usuário | ninguém no código |
 
 ---
@@ -79,13 +80,23 @@ projeto já quebrou alguma vez.
 7. **Nível `info` não vai para o e-mail.** São fatos permanentes da série; repetidos toda
    semana, ensinam o leitor a ignorar a seção de avisos.
 
+8. **"Não consegui coletar" não é "coletei e o dado está errado".** Erro de rede e
+   HTTP 5xx viram `comum.FonteIndisponivel`: o painel segue com o dado que tem,
+   `coleta.json` registra desde quando, e entra o alerta `fonte_indisponivel`.
+   HTTP 4xx e arquivo truncado continuam derrubando na hora, **sem retry** — 404 é
+   arquivo que mudou de lugar e 403 é bloqueio declarado, e os dois precisam de
+   gente, não de paciência. A severidade escala: 1 ou 2 dias é `aviso` e o job
+   termina verde; do terceiro em diante é `erro` e o job fica vermelho. Alarme que
+   toca todo dia sem exigir ação ensina a ignorar o alarme, e o próximo — que
+   exigir — vai parecer igual aos anteriores.
+
 ---
 
 ## Antes de commitar
 
 ```bash
 pip install -r requirements.txt pytest ruff
-pytest tests -q                       # 99 testes, todos offline
+pytest tests -q                       # 123 testes, todos offline
 ruff check --select E9,F scripts tests
 ```
 
@@ -116,8 +127,17 @@ e o console sem erro.
   foi realmente commitado, use a API de contents ou fixe o SHA do commit.
 - **Dois-pontos seguido de espaço dentro de escalar YAML sem aspas quebra o parse.**
   Derrubou o `ci.yml` em `print('JSON publicados: ok')`.
-- **O sandbox não alcança `gov.br`.** O pipeline inteiro só roda no runner do GitHub.
-  Para testar offline, carregue os `.json` já publicados em `docs/data/`.
+- **O shell do sandbox não alcança `gov.br`, mas o `web_fetch` do Claude alcança.**
+  O pipeline só roda de verdade no runner, e para testar offline carregue os `.json`
+  de `docs/data/`. Mas dá para **conferir se a origem está no ar** buscando a URL pelo
+  `web_fetch` — foi assim que se descobriu, nos runs #155-#157, que o arquivo estava
+  servindo normalmente e quem recusava era a origem, só para o runner.
+- **Falha de download no runner com a origem no ar é bloqueio de borda, não queda.**
+  Sintoma: `ConnectionResetError(104)` em todas as tentativas, segundos de duração,
+  dias seguidos. Antes de mexer no parser, confirme a URL pelo `web_fetch`: se ela
+  responde, o problema é o cliente, não o endereço. Daí os cabeçalhos de navegador
+  e o `Referer` em `comum.HEADERS` — e daí também o modo degradado, porque contra
+  bloqueio de IP nenhuma quantidade de paciência resolve.
 - **`xlrd` lê o `.xls` da planilha de produtores; `openpyxl` lê o `.xlsx` do PPI.** São
   formatos diferentes e bibliotecas diferentes. Não troque.
 
