@@ -10,10 +10,17 @@
  },
  "resumo": {
   "erro": 0,
-  "aviso": 2,
+  "aviso": 3,
   "info": 2
  },
  "alertas": [
+  {
+   "nivel": "aviso",
+   "codigo": "fonte_indisponivel",
+   "produto": null,
+   "label": null,
+   "texto": "Nao foi possivel baixar o arquivo da ANP em 1 dia seguido(s), desde 23/11/2026. O painel segue mostrando a ultima coleta bem sucedida (semana ate 13/11/2026). Ultimo erro: download falhou em https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-ppi/ppi.xlsx apos 5 tentativas: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer')). Enquanto isto durar, nenhum numero desta pagina e novo."
+  },
   {
    "codigo": "cobertura_a_vencer",
    "produto": "diesel",
@@ -86,5 +93,6 @@
    "semanas_depois": 6,
    "presumida": true
   }
- ]
+ ],
+ "coleta_falhou_em": "2026-11-23T22:24:48-03:00"
 }
