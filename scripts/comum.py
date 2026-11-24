@@ -11,7 +11,9 @@ Duas cópias de uma regra de parsing são duas chances de corrigir só uma.
 from __future__ import annotations
 
 import json
+import random
 import re
+import time
 import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -20,10 +22,36 @@ import requests
 
 BR_TZ = timezone(timedelta(hours=-3))
 
+# Pagina de onde o arquivo e linkado. Vai no Referer: o edge do gov.br trata
+# requisicao sem Referer e sem Accept-Language como trafego nao humano, e o
+# sintoma e RESET de conexao, nao 403 -- nao da para distinguir de queda.
+PAGINA_PRECOS = ("https://www.gov.br/anp/pt-br/assuntos/"
+                 "precos-e-defesa-da-concorrencia/precos")
+
+# UA de navegador real. O anterior se identificava como robo
+# ("anp-ppi-dashboard/1.0"), que e honesto e e exatamente o que um WAF
+# descarta. Nao e disfarce: o Referer e a pagina publica de onde o arquivo e
+# linkado, e a taxa e de uma requisicao por dia.
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; anp-ppi-dashboard/1.0)",
-    "Accept": "*/*",
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                   "AppleWebKit/537.36 (KHTML, like Gecko) "
+                   "Chrome/131.0.0.0 Safari/537.36"),
+    "Accept": ("text/html,application/xhtml+xml,application/xml;q=0.9,"
+               "application/vnd.openxmlformats-officedocument."
+               "spreadsheetml.sheet,*/*;q=0.8"),
+    "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+    "Referer": PAGINA_PRECOS,
 }
+
+
+class FonteIndisponivel(RuntimeError):
+    """Nao foi possivel FALAR com a origem.
+
+    Distinta de "falei e a resposta nao presta". A diferenca decide o que o
+    pipeline faz: origem muda, o painel segue com o dado que tem e avisa;
+    resposta errada (404, arquivo truncado, aba ausente) e defeito nosso ou
+    mudanca da ANP, e tem de parar a execucao para alguem olhar.
+    """
 
 
 def agora_br() -> datetime:
@@ -132,19 +160,68 @@ def casas_da_unidade(unidade: str) -> int:
 # --------------------------------------------------------------------------- #
 # rede
 # --------------------------------------------------------------------------- #
-def baixar(url: str, minimo: int = 5000, tentativas: int = 4, timeout: int = 180) -> bytes:
+TENTATIVAS = 5
+ESPERA_BASE = 5.0    # segundos; dobra a cada tentativa
+ESPERA_MAX = 60.0
+JITTER = 0.25        # +/- 25%, para dois crons nao baterem no mesmo segundo
+
+
+def espera_da_tentativa(n: int, aleatorio=random.random) -> float:
+    """Backoff exponencial com teto e jitter. `n` e 1-based; a 1a nao espera.
+
+    A versao anterior repetia QUATRO VEZES SEGUIDAS, sem dormir: as quatro
+    tentativas do run #157 couberam em 42 segundos. Contra um edge que esta
+    limitando taxa, isso nao e insistir, e confirmar o motivo do bloqueio.
+    """
+    if n <= 1:
+        return 0.0
+    bruta = min(ESPERA_BASE * 2 ** (n - 2), ESPERA_MAX)
+    return bruta * (1 + JITTER * (2 * aleatorio() - 1))
+
+
+def baixar(url: str, minimo: int = 5000, tentativas: int = TENTATIVAS,
+           timeout: int = 180, dormir=time.sleep, aleatorio=random.random) -> bytes:
+    """Baixa com retry, distinguindo origem indisponivel de resposta ruim.
+
+    - erro de rede ou HTTP 5xx -> `FonteIndisponivel`: a origem nao respondeu,
+      e quem chama decide degradar;
+    - HTTP 4xx, arquivo truncado -> `RuntimeError`: a resposta chegou e esta
+      errada. 404 e arquivo que mudou de lugar, 403 e bloqueio declarado --
+      os dois precisam de gente, nao de paciencia.
+
+    `dormir` e `aleatorio` sao injetaveis para o teste nao gastar relogio.
+    """
     ultimo = None
-    for n in range(tentativas):
-        try:
-            r = requests.get(url, headers=HEADERS, timeout=timeout)
-            r.raise_for_status()
+    with requests.Session() as sessao:
+        sessao.headers.update(HEADERS)
+        for n in range(1, tentativas + 1):
+            espera = espera_da_tentativa(n, aleatorio)
+            if espera:
+                print(f"  nova tentativa em {espera:.0f}s")
+                dormir(espera)
+            try:
+                r = sessao.get(url, timeout=timeout)
+            except requests.RequestException as exc:
+                ultimo = exc
+                print(f"  tentativa {n}/{tentativas} falhou: {exc}")
+                continue
+            if 400 <= r.status_code < 500:
+                raise RuntimeError(
+                    f"{url} respondeu HTTP {r.status_code}. Nao e indisponibilidade: "
+                    "ou o arquivo mudou de lugar, ou a origem esta recusando este "
+                    "cliente de forma declarada. Confira a pagina da ANP."
+                )
+            if r.status_code >= 500:
+                ultimo = RuntimeError(f"HTTP {r.status_code}")
+                print(f"  tentativa {n}/{tentativas} falhou: HTTP {r.status_code}")
+                continue
             if len(r.content) < minimo:
-                raise RuntimeError(f"arquivo truncado: {len(r.content)} bytes")
+                raise RuntimeError(
+                    f"arquivo truncado em {url}: {len(r.content)} bytes, "
+                    f"minimo {minimo}"
+                )
             return r.content
-        except Exception as exc:  # noqa: BLE001
-            ultimo = exc
-            print(f"  tentativa {n + 1} falhou: {exc}")
-    raise RuntimeError(f"download falhou em {url}: {ultimo}")
+    raise FonteIndisponivel(f"download falhou em {url} apos {tentativas} tentativas: {ultimo}")
 
 
 # --------------------------------------------------------------------------- #
