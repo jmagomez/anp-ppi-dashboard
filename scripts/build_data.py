@@ -26,7 +26,8 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from comum import (
-    agora_br, as_number, escrever_csv, escrever_json, limpar, norm, baixar,
+    FonteIndisponivel, agora_br, as_number, baixar, escrever_csv,
+    escrever_json, limpar, norm,
 )
 
 XLSX_URL = (
@@ -180,6 +181,30 @@ def escrever_serie_longa(products: dict) -> bool:
     return escrever_csv(OUT_DIR / "ppi_long.csv", linhas)
 
 
+def degradar(exc: Exception) -> int:
+    """Origem fora do ar: preserva o painel, publica o aviso, decide o codigo.
+
+    Devolve 0 enquanto a falha couber em "a origem oscilou" e 1 quando passar
+    disso -- e so entao o workflow fica vermelho e o e-mail de falha sai.
+    """
+    import coleta
+
+    estado = coleta.registrar_falha(OUT_DIR, XLSX_URL, str(exc))
+    ultima = None
+    meta = OUT_DIR / "meta.json"
+    if meta.exists():
+        try:
+            with open(meta, encoding="utf-8") as fh:
+                ultima = json.load(fh).get("latest_week_end")
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    aviso = coleta.alerta(estado, ultima)
+    coleta.injetar_em_qualidade(OUT_DIR, aviso)
+    print(f"[coleta] {aviso['nivel'].upper()}: {aviso['texto']}")
+    return 1 if aviso["nivel"] == "erro" else 0
+
+
 def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -196,7 +221,12 @@ def main() -> int:
             print(f"[qualidade] execucao anterior ilegivel, seguindo sem comparar: {exc}")
 
     print(f"Baixando {XLSX_URL}")
-    blob = baixar(XLSX_URL, minimo=10000)
+    try:
+        blob = baixar(XLSX_URL, minimo=10000)
+    except FonteIndisponivel as exc:
+        # A origem nao respondeu. Isso NAO e motivo para o job inteiro ficar
+        # vermelho todo dia: ver scripts/coleta.py.
+        return degradar(exc)
     digest = hashlib.sha256(blob).hexdigest()
     print(f"  {len(blob):,} bytes | sha256 {digest[:16]}...")
     (RAW_DIR / "ppi.xlsx").write_bytes(blob)
@@ -218,6 +248,9 @@ def main() -> int:
             f"  {label:<14} {len(p['weeks']):>4} semanas | "
             f"{len(p['locations']):>2} terminais | ate {p['weeks'][-1]['end']}"
         )
+
+    import coleta
+    coleta.registrar_sucesso(OUT_DIR)
 
     latest = max(p["weeks"][-1]["end"] for p in products.values())
     carimbo = agora_br().isoformat(timespec="seconds")
@@ -258,7 +291,25 @@ def main() -> int:
         import defasagem
         alertas_defasagem = defasagem.run(products, OUT_DIR)
     except Exception as exc:  # noqa: BLE001
+        # Antes isto morria num print: a defasagem sumia do painel e nada
+        # dizia por que. O PPI tem dado novo e a defasagem nao -- e isso
+        # precisa aparecer para quem le, nao so no log do Actions.
         print(f"[defasagem] etapa ignorada: {type(exc).__name__}: {exc}")
+        indisponivel = isinstance(exc, FonteIndisponivel)
+        alertas_defasagem = [{
+            "nivel": "aviso" if indisponivel else "erro",
+            "codigo": "defasagem_indisponivel" if indisponivel else "defasagem_falhou",
+            "produto": None, "label": None,
+            "texto": (
+                "A planilha de produtores da ANP nao respondeu nesta execucao, "
+                "entao a defasagem nao foi recalculada. O PPI acima e desta "
+                "coleta; a defasagem e da anterior."
+                if indisponivel else
+                f"O calculo da defasagem falhou ({type(exc).__name__}: "
+                f"{str(exc)[:160]}). Os numeros de defasagem desta pagina sao "
+                "da execucao anterior."
+            ),
+        }]
 
     try:
         import qualidade

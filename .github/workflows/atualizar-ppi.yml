@@ -43,16 +43,27 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      # Sai 0 quando a origem da ANP apenas nao respondeu (ate 2 dias
+      # seguidos) e 1 a partir do terceiro, ou quando a resposta chegou errada
+      # -- 404, arquivo truncado, aba ausente. Ver scripts/coleta.py.
       - name: Coletar e processar dados da ANP
         run: python scripts/build_data.py
 
       - name: Resumo da execucao
+        if: always()
         run: |
           echo '### PPI ANP - atualizacao' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
           sed 's/^/    /' docs/data/meta.json >> "$GITHUB_STEP_SUMMARY"
 
+      # `if: always()` de proposito: quando a coleta falha por tres dias e sai
+      # com codigo 1, ela JA gravou o aviso em qualidade.json e o estado em
+      # coleta.json. Sem isto esses arquivos ficariam no runner e o painel
+      # congelaria no estado do segundo dia -- avisando menos justamente
+      # quando a situacao piorou. Se nada foi escrito, o diff e vazio e o
+      # passo nao faz nada.
       - name: Publicar dados atualizados
+        if: always()
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -60,12 +71,19 @@ jobs:
           if git diff --staged --quiet; then
             echo 'Nenhuma mudanca nos dados.'
           else
-            git commit -m "chore(dados): atualiza PPI da ANP ($(TZ=America/Sao_Paulo date +%Y-%m-%d))"
+            if git diff --staged --name-only | grep -qx 'docs/data/coleta.json'; then
+              msg="chore(dados): registra falha de coleta da ANP ($(TZ=America/Sao_Paulo date +%Y-%m-%d))"
+            else
+              msg="chore(dados): atualiza PPI da ANP ($(TZ=America/Sao_Paulo date +%Y-%m-%d))"
+            fi
+            git commit -m "$msg"
             git push
           fi
 
       # Envia so no agendamento de segunda-feira e nas execucoes manuais.
       # A coleta diaria e os commits de codigo atualizam o painel em silencio.
+      # Nao roda quando a coleta saiu com erro: ai o proprio job vermelho e o
+      # aviso, e o e-mail iria repetir o que o painel ja diz em vermelho.
       - name: Enviar e-mail semanal
         if: >-
           github.event_name == 'workflow_dispatch' ||
