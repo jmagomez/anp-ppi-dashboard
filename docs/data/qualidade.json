@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-24T17:55:19-03:00",
- "comparado_com": "2026-11-16T17:42:50-03:00",
+ "generated_at": "2026-11-26T16:54:44-03:00",
+ "comparado_com": "2026-11-24T17:55:08-03:00",
  "limiares": {
   "variacao_aviso_pct": 20.0,
   "variacao_erro_pct": 60.0,
@@ -10,23 +10,16 @@
  },
  "resumo": {
   "erro": 0,
-  "aviso": 3,
-  "info": 1
+  "aviso": 2,
+  "info": 2
  },
  "alertas": [
-  {
-   "nivel": "aviso",
-   "codigo": "fonte_indisponivel",
-   "produto": null,
-   "label": null,
-   "texto": "Nao foi possivel baixar o arquivo da ANP em 1 dia seguido(s), desde 25/11/2026. O painel segue mostrando a ultima coleta bem sucedida (semana ate 20/11/2026). Ultimo erro: download falhou em https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/arq-ppi/ppi.xlsx apos 5 tentativas: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer')). Enquanto isto durar, nenhum numero desta pagina e novo."
-  },
   {
    "codigo": "cobertura_a_vencer",
    "produto": "diesel",
    "label": "Diesel A S10",
    "nivel": "aviso",
-   "texto": "Diesel A S10: a aliquota vigente expira em 2026-12-31, daqui a 37 dia(s). Confirme se houve prorrogacao antes que as semanas comecem a sair da serie."
+   "texto": "Diesel A S10: a aliquota vigente expira em 2026-12-31, daqui a 35 dia(s). Confirme se houve prorrogacao antes que as semanas comecem a sair da serie."
   },
   {
    "nivel": "aviso",
@@ -34,6 +27,13 @@
    "produto": "qav",
    "label": "QAV",
    "texto": "QAV: a aliquota vigente desde 03/08/2026 e presumida, nao confirmada em fonte oficial. O teste de continuidade e inconclusivo: o preco se moveu 7 vezes mais que a mudanca de aliquota no periodo, entao ele nao confirma nem desmente a presuncao."
+  },
+  {
+   "nivel": "info",
+   "codigo": "sem_semana_nova",
+   "produto": null,
+   "label": null,
+   "texto": "A ANP nao publicou semana nova desde 20/11/2026 (todos os produtos). O painel segue mostrando a ultima semana disponivel."
   },
   {
    "codigo": "cobertura_buraco",
@@ -86,6 +86,5 @@
    "semanas_depois": 6,
    "presumida": true
   }
- ],
- "coleta_falhou_em": "2026-11-25T17:18:37-03:00"
+ ]
 }
